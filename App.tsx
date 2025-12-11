@@ -14,9 +14,9 @@ import Playground from './src/Components/Playground';
 
 function App() {
   return (
-    <View style={styles.container}>
+    <SafeAreaProvider style={styles.container}>
       <Playground />
-    </View>
+    </SafeAreaProvider>
   );
 }
 
