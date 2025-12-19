@@ -32,30 +32,34 @@ const Card = ({
   const halfWidth = cardWidth / 2;
   const halfHeight = cardHeight / 2;
 
-  // 1. CLEANER ANIMATION: Directly derive the animation state
+  // 1. CLEANER ANIMATION: Directly derive the animateion state
   const rotationAngle = useDerivedValue(() => {
-    return withTiming(faceUp.value ? Math.PI : 0, { duration: 500 });
+    return withTiming(faceUp.value ? Math.PI: 0, { duration: 500 });
   }, [faceUp]);
 
   const transform = useDerivedValue(() => {
     const angle = rotationAngle.value;
 
     return [
+      {perspective : 800},
       // Move origin to the center of the card
       { translateX: x.value + halfWidth },
       { translateY: y.value + halfHeight },
       // Perform the rotation
       { rotateY: angle },
-      // Move origin back to top-left so the drawing logic is standard
+                { scaleX: faceUp.value ? -1 : 1 }, // 🔑 FIX MIRROR
+
+      // Move origin back to top-left so the drawing logic ris standard
       { translateX: -halfWidth },
       { translateY: -halfHeight },
+
     ];
   });
 
   const currentImage = useDerivedValue(() => {
     const angle = rotationAngle.value;
     // Swap image when we cross the 90 degree (PI/2) mark
-    const isShowingFace = angle > Math.PI / 2 && angle < (3 * Math.PI) / 2;
+    const isShowingFace = angle > Math.PI /2 && angle < (4 * Math.PI) / 2;
 
     return isShowingFace ? faceCardImg : backCardImg;
   }, [faceCardImg, backCardImg]);
