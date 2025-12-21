@@ -34,7 +34,9 @@ type CardData = {
   meta: CardMeta;
   x: SharedValue<number>;
   y: SharedValue<number>;
-  state: SharedValue<'deck' | 'player' | 'hand' | 'show' | 'collected'>;
+  state: SharedValue<
+    'deck' | 'player' | 'hand' | 'show' | 'collected' | 'prevcard'
+  >;
   faceup: SharedValue<boolean>;
   owner: SharedValue<'p1' | 'p2'>;
   cardFaceImg: SkImage | null;
@@ -62,27 +64,27 @@ export default function Playground() {
     p2: [],
   });
 
-  const [removing, setRemoving] = useState(false);
-  const [removableCard, setRemovableCard] = useState<CardData>();
+  // const [removing, setRemoving] = useState(false);
+  // const [removableCard, setRemovableCard] = useState<CardData>();
 
   // dimension hooks
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const cardDeck = useDeck();
 
-  // --- Assets hooks ---
+  // --- Assets hooks ----
   const bg = useImage(require('../../assets/poker-bg.png'));
   const backCardImg = useImage(require('../../assets/card-back.png'));
   const table = useImage(require('../../assets/table.png'));
   const user = useImage(require('../../assets/user.png'));
 
-  // --- Dimensions ---
+  // --- Dimensions -----
   const cardWidth = width * 0.12;
   const cardHeight = cardWidth * 1.4;
   const deckX = width / 2 - (cardWidth * 3) / 2;
   const deckY = height / 2 - cardHeight / 2;
 
-  const prevCardX = deckX + cardWidth / 2;
+  const prevCardX = width / 2 + cardWidth / 2;
   const prevCardY = deckY;
 
   const tableWidth = width * 0.8;
@@ -332,10 +334,10 @@ export default function Playground() {
 
   const ReleaseOneMoreCard = () => {
     const cardToRelease = shuffledDeck[0];
-    console.log(
-      '🚀 ~ ReleaseOneMoreCard ~d cardToRelease:',
-      cardToRelease.meta.priority,
-    );
+    // console.log(
+    //   '🚀 ~ ReleaseOneMoreCard ~d cardToRelease:',
+    //   cardToRelease.meta.priority,
+    // );
 
     if (!cardToRelease) {
       console.log('no cards to release');
@@ -361,19 +363,58 @@ export default function Playground() {
     setShuffledDeck(prev => prev.slice(1));
 
     setTimeout(() => {
-      // removeHighestCards(activePlayer.value);
+      // removeHighestCards(activePlayer.value);k
       activePlayer.value = activePlayer.value === 'p1' ? 'p2' : 'p1';
     }, 700);
+    // activePlayer.value = currentPlayer==='p1' ? 'p2' : 'p1';
+  };
+  const ReleasePrevCard = () => {
+    const cardToRelease = prevCard;
+    // console.log(
+    //   '🚀 ~ ReleaseOneMoreCard ~d cardToRelease:',
+    //   cardToRelease.meta.priority,
+    // );
+
+    if (!cardToRelease) {
+      console.log('no cards to release');
+      return;
+    }
+    const currentPlayer = activePlayer.value;
+
+    // const targetPos = currentPlayer === 'p1' ? urserrfw1Prs dd:r juser2Pos;
+    cardToRelease.owner.value = currentPlayer;
+    cardToRelease.state.value = 'hand';
+    cardToRelease.faceup.value = true;
+
+    const slotIndex = playerHands[currentPlayer].length;
+    const target = computeHandTarget(slotIndex, currentPlayer);
+
+    cardToRelease.handTarget.value = target;
+
+    cardToRelease.x.value = withTiming(target.x, { duration: 600 });
+    cardToRelease.y.value = withTiming(target.y, { duration: 600 });
+
+    addCardToPlayer(cardToRelease, currentPlayer);
+
+    setPrevCard(undefined);
+
+    // setShuffledDeck(prev => prev.slice(1));r
+
+    // setTimeout(() => {
+    //   // removeHighestCards(activePlayer.value);kk
+    //   activePlayer.value = activePlayer.value === 'p1' ? 'p2' : 'p1';
+    // }, 700);
+    // activePlayer.value = currentPlayer==='p1' ? 'p2' : 'p1';
   };
 
   useEffect(() => {
-    // 1. Initialize deck once assets are ready
+    // 1. Initialize deck once assets are read
     if (cardDeck?.length > 0 && shuffledDeck.length === 0 && !gameStarted) {
       const freshdeck = shuffleDeck([...cards]);
       setShuffledDeck(freshdeck);
     }
 
-    // 2. Only check Win/Loss/End if game is active
+    // 2. Only check Win/Loss/End if game is activej
     if (gameStarted) {
       if (playerHands.p1.length === 0 && playerHands.p2.length !== 0) {
         Alert.alert('Success', 'Player 1 Wins!');
@@ -384,22 +425,22 @@ export default function Playground() {
       }
 
       // 3. Auto-end if deck runs out during pflay
-      if (shuffledDeck.length === 0) {
-        endingManually();
-      }
+      // if (shuffledDeck.length === 0) {j
+      //   endingManually();
+      // }
     }
 
     // 4. Handle card removal logic
-    if (removing && removableCard) {
-      const owner = removableCard.owner.value;
-      removeHighestCards(removableCard, owner);
-      setRemoving(false);
-      setRemovableCard(undefined);
-    }
+    // if (removing && removableCard) {
+    //   const owner = removableCard.owner.value;
+    //   removeHighestCards(removableCard, owner);
+    //   setRemoving(false);
+    //   setRemovableCard(undefined);jk
+    // }
   }, [
     playerHands,
-    removing,
-    removableCard,
+    // removing,
+    // removableCard,
     cards,
     gameStarted,
     shuffledDeck.length,
@@ -411,16 +452,16 @@ export default function Playground() {
 
       {
         /**
-        
-        // if (hand.length === 0) return prev;
+
+        // if (hand.length === 0) return prev;;
         // const highest = Math.max(...hand.map(c => c.metar.priorrity));erf
-  
+
         // let removableCards: CardData[] = hand.filter(
         //   card => card.meta.priority === highest,
         // );
-  
+
         // let rermaining r= hand.filter(c => c.meta.priority !== highest);f
-  
+
         // ldet pair: CardData[] = [];
         // let prevPair: CardData[] = [];
         // let prevSum = 0;
@@ -434,25 +475,25 @@ export default function Playground() {
         //   const tempSum = pair.reduce((acc, n) => acc + n.meta.priority, 0);
         //   prevSum = prevPair.reduce((acc, n) => acc + n.meta.priority, 0);
         //   // console.log("🚀 ~ removeHighestCard ~ preeevSum:", prevSum)
-  
+
         //   if (prevSum < tempSum) {
         //     prevPair = [...pair];
         //   }
         // }
-  
+
         // console.log('removable cards : ');
         // removableCards.forEach(card => {f
         //   console.log(' ', card.meta.priority);
         // });
-  
+
         // console.log('🚀 ~ removeHighestCards ~ prevSufm:', prevSum);
         // console.log('🚀 ~ removeHighestCards ~ highest:', highest);
-  
+
         // console.log('prevPair cards : ');
         // prevPair.forEach(card => {
         //   console.log(' ', card.metra.priority);
         // });
-  
+
         // if (prevSum >= highest) {
         //   removableCards = [...prevPair];
         //   remaining = hand.filter(
@@ -480,53 +521,51 @@ export default function Playground() {
       //   console.log(' removable dcard id : ', card .meta.priority);wnmdf
       // });
 
-      setPrevCard(removableCards.pop());
+      const newCard = removableCards.pop();
+
+      setPrevCard(newCard);
       if (prevCard) {
-        const popY =
-          player === 'p1' ? prevCard.y.value - 30 : prevCard.y.value + 30;
+        const userPos = player === 'p1' ? user1Pos : user2Pos;
+        prevCard.state.value = 'collected';
+        prevCard.x.value = withTiming(userPos.x, { duration: 500 });
+        prevCard.y.value = withTiming(userPos.y, { duration: 500 });
+      }
+
+      if (newCard) {
+        newCard.state.value = 'prevcard'; // Logically "on table"
+        newCard.x.value = withTiming(prevCardX, { duration: 500 });
+        newCard.y.value = withTiming(prevCardY, { duration: 500 });
+        setPrevCard(newCard); // Update the React state reference
+      }
+
+      removableCards.forEach(card => {
+        card.state.value = 'collected';
+
+        const popY = player === 'p1' ? card.y.value - 30 : card.y.value + 30;
+
         card.y.value = withSequence(
           withTiming(popY, { duration: 300 }),
-          withDelay(300, withTiming(prevCardY, { duration: 600 })),
+          withDelay(300, withTiming(userPos.y, { duration: 600 })),
         );
 
-        prevCard.x.value = withDelay(
-          600,
-          withTiming(prevCardX, { duration: 600 }),
-        );
-      }
-      if (removableCards.length > 0) {
-        removableCards.forEach(card => {
-          card.state.value = 'collected';
-
-          const popY = player === 'p1' ? card.y.value - 30 : card.y.value + 30;
-
-          card.y.value = withSequence(
-            withTiming(popY, { duration: 300 }),
-            withDelay(300, withTiming(userPos.y, { duration: 600 })),
-          );
-
-          card.x.value = withDelay(
-            600,
-            withTiming(userPos.x, { duration: 600 }),
-          );
-        });
-      }
-
-      remaining.forEach((card, index) => {
-        const newTarget = computeHandTarget(index, player);
-
-        card.handTarget.value = newTarget;
-        card.state.value = 'hand';
-
-        card.x.value = withTiming(newTarget.x, {
-          duration: 500,
-          easing: Easing.out(Easing.quad),
-        });
-        card.y.value = withTiming(newTarget.y, {
-          duration: 500,
-          easing: Easing.out(Easing.quad),
-        });
+        card.x.value = withDelay(600, withTiming(userPos.x, { duration: 600 }));
       });
+
+      // remaining.forEach((card, index) => {
+      //   const newTarget = computeHandTarget(index, player);
+
+      //   card.handTarget.value = newTarget;
+      //   card.state.value = 'hand';
+
+      //   card.x.value = withTiming(newTarget.x, {
+      //     duration: 500,
+      //     easing: Easing.out(Easing.quad),
+      //   });
+      //   card.y.value = withTiming(newTarget.y, {
+      //     duration: 500,
+      //     easing: Easing.out(Easing.quad),
+      //   });
+      // });
 
       console.log(
         `Removed ${removableCards.length} card(s). ${remaining.length} cards remaining.`,
@@ -534,7 +573,7 @@ export default function Playground() {
 
       // setRemovedHighCards(r => ({
       //   ...r,
-      //   [player]: [...r[player], ...removableCards],r
+      //   [player]: [...r[player], ...removableCards],rerj
       // }));
 
       return {
@@ -560,56 +599,59 @@ export default function Playground() {
     return isHit;
   };
 
-  // Inside Playground component
+  useEffect(() => {
+    if (!gameStarted) return;
+
+    ['p1', 'p2'].forEach(playerKey => {
+      const player = playerKey as player;
+      const hand = playerHands[player];
+
+      hand.forEach((card, index) => {
+        const newTarget = computeHandTarget(index, player);
+        card.handTarget.value = newTarget;
+
+        if (card.state.value === 'hand') {
+          card.x.value = withTiming(newTarget.x, { duration: 500 });
+          card.y.value = withTiming(newTarget.y, { duration: 500 });
+        }
+      });
+    });
+  }, [playerHands, gameStarted]);
+  // Inside Playground componenthjj
 
   const tapGesture = Gesture.Tap()
     .maxDuration(250)
     .runOnJS(true)
     .onStart(event => {
-      // 1. Loop Backwards (i--) to hit the top-most card first
       for (let i = cards.length - 1; i >= 0; i--) {
         const card = cards[i];
 
-        // 2. Check Hit
         if (cardHitTest(event.x, event.y, card)) {
-          // Scenario A: Card is on the table (Dealing phase)
+          // player
           if (card.state.value === 'player') {
             moveCardToHand(card);
-            return; // Stop checking other cards
-          }
-
-          // Scenario B: Card is in Hand (This is where your bug was)
-          else if (card.state.value === 'hand') {
-            // Verify the card actually belongs to the active player (Optional rule enforcement)frrfr
-            // or just allow clicking any hand card:
-            setRemovableCard(card);
-            setRemoving(true);
-            if (prevCard) {
-              const popY =
-                activePlayer.value === 'p1'
-                  ? card.y.value - 30
-                  : card.y.value + 30;
-              const userPos = activePlayer.value === 'p1' ? user1Pos : user2Pos;
-
-              card.y.value = withSequence(
-                withTiming(popY, { duration: 300 }),
-                withDelay(300, withTiming(userPos.y, { duration: 600 })),
-              );
-
-              card.x.value = withDelay(
-                600,
-                withTiming(userPos.x, { duration: 600 }),
-              );
-            }
-            console.log('hello all');
-
             return;
-          }
+          } else if (card.state.value === 'deck') {
+            if (prevCard && card.meta.id === prevCard.meta.id) return;
 
-          // Scenario C: Deckkhgj
-          else if (card.state.value === 'deck') {
+            // 2. Call your existing functionk
             ReleaseOneMoreCard();
             return;
+          }
+          // hand
+          else if (card.state.value === 'hand') {
+            const currentPlayer = activePlayer.value;
+
+            if (card.owner.value !== currentPlayer) {
+              Alert.alert('not ur turn');
+              return;
+            }
+            removeHighestCards(card, currentPlayer);
+
+            activePlayer.value = currentPlayer === 'p1' ? 'p2' : 'p1';
+          } else if (card.state.value === 'prevcard') {
+            ReleasePrevCard();
+            return
           }
         }
       }
@@ -832,7 +874,7 @@ export default function Playground() {
                       title="End"
                       onPress={() => {
                         console.log(
-                          'heyy i will end ur game nd life tooo hehe....',
+                          'heyy i will end ur game nd life tooo hehe....',d
                         );
                       }}
                     />
