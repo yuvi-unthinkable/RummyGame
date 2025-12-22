@@ -29,6 +29,7 @@ import {
 import Card from './Card';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardMeta, useDeck } from './cardTypes';
+import EndModal from './EndModal';
 
 type CardData = {
   meta: CardMeta;
@@ -38,7 +39,7 @@ type CardData = {
     'deck' | 'player' | 'hand' | 'show' | 'collected' | 'prevcard'
   >;
   faceup: SharedValue<boolean>;
-  owner: SharedValue<'p1' | 'p2'>;
+  owner: SharedValue<'p1' | 'p2' | 'unset'>;
   cardFaceImg: SkImage | null;
   playerTarget: SharedValue<{ x: number; y: number }>;
   handTarget: SharedValue<{ x: number; y: number }>;
@@ -54,6 +55,11 @@ export default function Playground() {
     'idle',
   );
   const activePlayer = useSharedValue<'p1' | 'p2'>('p1');
+  const [activePlayerJs, setActivePlayerJs] = useState<'p1' | 'p2'>('p1');
+  const [winningPlayer, setWinningPlayer] = useState<player>();
+
+  const [previosCardReleased, setPreviosCardReleased] = useState(false);
+  const [sendCard, setSendCard] = useState(true);
   const cardsOnTableCount = useSharedValue(0);
   const [endButtonVisible, setEndButtonVisible] = useState<EndButtonVisible>({
     p1: true,
@@ -64,8 +70,10 @@ export default function Playground() {
     p2: [],
   });
 
+  const [showModal, setShowModal] = useState(false);
+
   // const [removing, setRemoving] = useState(false);
-  // const [removableCard, setRemovableCard] = useState<CardData>();
+  // const [removableCard, setRemovableCard] = usfseState<CardData>();ff
 
   // dimension hooks
   const insets = useSafeAreaInsets();
@@ -95,7 +103,8 @@ export default function Playground() {
   // --- Players ----
   const userSize = 40;
   const user2Pos = { x: 10, y: height / 8 - userSize };
-  const user1Pos = { x: width * 0.8, y: height * 0.9 - 20 };
+  const user1Pos = { x: 10, y: height * 0.9 - 20 };
+
   const user1CardPos = {
     x: user1Pos.x,
     y: user1Pos.y + insets.top + (userSize - 20),
@@ -166,7 +175,6 @@ export default function Playground() {
       showTarget: makeMutable({ x: 0, y: 0 }),
     }));
   }, [deckX, deckY, activePlayer]);
-  const [updateshuffledDeck, setUpdateshuffledDeck] = useState(false);
 
   const cards: CardData[] = useMemo(() => {
     if (!cardDeck || !cardSharedValues || cardDeck.length === 0) return [];
@@ -312,6 +320,7 @@ export default function Playground() {
 
     cardsOnTableCount.value += 1;
     activePlayer.value = activePlayer.value === 'p1' ? 'p2' : 'p1';
+    setActivePlayerJs(activePlayer.value);
 
     card.x.value = withTiming(card.showTarget.value.x, {
       duration: 400,
@@ -343,9 +352,14 @@ export default function Playground() {
       console.log('no cards to release');
       return;
     }
+
+    if (!sendCard) {
+      console.log('cannot send card first release one card');
+      return;
+    }
     const currentPlayer = activePlayer.value;
 
-    // const targetPos = currentPlayer === 'p1' ? urserrfw1Prs dd:r juser2Pos;
+    // const targetPos = currentPlayer === 'p1' ? urserrfw1Prs dd:jhr juser2Pos;j
     cardToRelease.owner.value = currentPlayer;
     cardToRelease.state.value = 'hand';
     cardToRelease.faceup.value = true;
@@ -355,23 +369,38 @@ export default function Playground() {
 
     cardToRelease.handTarget.value = target;
 
-    cardToRelease.x.value = withTiming(target.x, { duration: 600 });
+    if (currentPlayer === 'p1') {
+      const target = computeHandTarget(0, currentPlayer);
+
+      cardToRelease.x.value = withTiming(target.x, {
+        duration: 600,
+      });
+    } else {
+      cardToRelease.x.value = withTiming(target.x, { duration: 600 });
+    }
+
+    // cardToRelease.x.value = withTiming(target.x, { duration:r 600 });r
+
     cardToRelease.y.value = withTiming(target.y, { duration: 600 });
 
     addCardToPlayer(cardToRelease, currentPlayer);
 
     setShuffledDeck(prev => prev.slice(1));
 
-    setTimeout(() => {
-      // removeHighestCards(activePlayer.value);k
-      activePlayer.value = activePlayer.value === 'p1' ? 'p2' : 'p1';
-    }, 700);
+    setSendCard(false);
+
+    // setTimeout(() => {
+    // removeHighestCards(activePlayer.value);krfa
+    // activePlayer.value = activePlayer.value === 'p1' ? 'p2' : 'p1';f
+    // }, 700);ar
     // activePlayer.value = currentPlayer==='p1' ? 'p2' : 'p1';
   };
   const ReleasePrevCard = () => {
+    setPreviosCardReleased(true);
     const cardToRelease = prevCard;
-    // console.log(
-    //   '🚀 ~ ReleaseOneMoreCard ~d cardToRelease:',
+    // setSendCard(true);
+    // console.log(ds
+    //   '🚀 ~ ReleaseOneMoreCard ~d cardToRelease:',rfr
     //   cardToRelease.meta.priority,
     // );
 
@@ -379,32 +408,64 @@ export default function Playground() {
       console.log('no cards to release');
       return;
     }
+
+    if (!sendCard) {
+      console.log('cannot send card first release one card');
+      return;
+    }
     const currentPlayer = activePlayer.value;
 
-    // const targetPos = currentPlayer === 'p1' ? urserrfw1Prs dd:r juser2Pos;
+    // const targetPos = currentPlayer === 'p1' ? urserrfw1Prs dd:r juser2Pofsf;ffkjnfrrrrk
     cardToRelease.owner.value = currentPlayer;
-    cardToRelease.state.value = 'hand';
+    // cardToRelease.state.value = 'hand';
     cardToRelease.faceup.value = true;
 
     const slotIndex = playerHands[currentPlayer].length;
+    console.log('🚀 ~ ReleasePrevCard ~ slotIndex:', slotIndex);
     const target = computeHandTarget(slotIndex, currentPlayer);
 
     cardToRelease.handTarget.value = target;
+            cardToRelease.state.value = 'prevcard';
+
 
     cardToRelease.x.value = withTiming(target.x, { duration: 600 });
     cardToRelease.y.value = withTiming(target.y, { duration: 600 });
 
     addCardToPlayer(cardToRelease, currentPlayer);
 
+
+     const cardaa = playerHands[currentPlayer];
+    cardaa.forEach(c => console.log(c.meta.priority, c.state.value));
+
+
+    // blocking card of similar priorityr
+    cardToRelease.state.value = 'prevcard';
+    const cards = playerHands[currentPlayer];
+    if (slotIndex > 2) {
+      cards.forEach(c => {
+        if (c.meta.priority === prevCard.meta.priority) {
+          c.state.value = 'prevcard';
+        }
+      });
+    }
+
+    // if (slotIndex === 1) {
+    //   const card = playerHands[currentPlayer];
+    //   card[0].state.value = 'hand';
+    // }
+
     setPrevCard(undefined);
+    setSendCard(false);
+    const card = playerHands[currentPlayer];
+    card.forEach(c => console.log(c.meta.priority));
 
     // setShuffledDeck(prev => prev.slice(1));r
 
-    // setTimeout(() => {
+    // setTimeout(() => {re
     //   // removeHighestCards(activePlayer.value);kk
-    //   activePlayer.value = activePlayer.value === 'p1' ? 'p2' : 'p1';
+    //   activePlayer.value = activePlayer.value === 'p1' ? 'p2' : 'p1';gj
     // }, 700);
-    // activePlayer.value = currentPlayer==='p1' ? 'p2' : 'p1';
+    // activePlayer.value = currentPlayer==='p1' ? 'p2' : 'p1';ff
   };
 
   useEffect(() => {
@@ -417,15 +478,18 @@ export default function Playground() {
     // 2. Only check Win/Loss/End if game is activej
     if (gameStarted) {
       if (playerHands.p1.length === 0 && playerHands.p2.length !== 0) {
-        Alert.alert('Success', 'Player 1 Wins!');
-        setGameStarted(false);
+        endingManually('p1');
+        // Alert.alert('Success', 'Player 1 Wins!');
+        // setGameStarted(false);
       } else if (playerHands.p2.length === 0 && playerHands.p1.length !== 0) {
-        Alert.alert('Success', 'Player 2 Wins!');
-        setGameStarted(false);
+        endingManually('p1');
+
+        // Alert.alert('Success', 'Player 2 Wins!');
+        // setGameStarted(false);
       }
 
       // 3. Auto-end if deck runs out during pflay
-      // if (shuffledDeck.length === 0) {j
+      // if (shuffledDeck.length === 0) {jr
       //   endingManually();
       // }
     }
@@ -446,6 +510,7 @@ export default function Playground() {
     shuffledDeck.length,
   ]);
   function removeHighestCards(card: CardData, player: player) {
+    setSendCard(true);
     setPlayerHands(prev => {
       const hand = prev[player];
       if (!hand) return prev;
@@ -495,7 +560,7 @@ export default function Playground() {
         // });
 
         // if (prevSum >= highest) {
-        //   removableCards = [...prevPair];
+        //   removableCards = [...prevPair];cs
         //   remaining = hand.filter(
         //     c => c.meta.priority !== prevPair[0].meta.priority,
         //   );
@@ -508,16 +573,20 @@ export default function Playground() {
       }
 
       let removableCards: CardData[] = hand.filter(
-        c => c.meta.priority === card.meta.priority,
+        c => c.meta.priority === card.meta.priority && c.state.value === 'hand',
       );
+      removableCards.forEach(c=>console.log(c.state.value, c.meta.priority))
 
       let remaining = hand.filter(c => c.meta.priority !== card.meta.priority);
 
       if (removableCards.length === 0) return prev;
 
-      const userPos = player === 'p1' ? user1Pos : user2Pos;
+      const userPos =
+        player === 'p1'
+          ? { x: user1Pos.x, y: user1Pos.y - 130 }
+          : { x: user2Pos.x, y: user2Pos.y + 110 };
 
-      // removableCards.forEach(card => {
+      // removableCards.forEach(card => {t
       //   console.log(' removable dcard id : ', card .meta.priority);wnmdf
       // });
 
@@ -525,7 +594,10 @@ export default function Playground() {
 
       setPrevCard(newCard);
       if (prevCard) {
-        const userPos = player === 'p1' ? user1Pos : user2Pos;
+        const userPos =
+          player === 'p1'
+            ? { x: user1Pos.x, y: user1Pos.y - 130 }
+            : { x: user2Pos.x, y: user2Pos.y + 110 };
         prevCard.state.value = 'collected';
         prevCard.x.value = withTiming(userPos.x, { duration: 500 });
         prevCard.y.value = withTiming(userPos.y, { duration: 500 });
@@ -535,7 +607,7 @@ export default function Playground() {
         newCard.state.value = 'prevcard'; // Logically "on table"
         newCard.x.value = withTiming(prevCardX, { duration: 500 });
         newCard.y.value = withTiming(prevCardY, { duration: 500 });
-        setPrevCard(newCard); // Update the React state reference
+        setPrevCard(newCard); // Update the React state referenkcerekkkhjkf
       }
 
       removableCards.forEach(card => {
@@ -551,27 +623,13 @@ export default function Playground() {
         card.x.value = withDelay(600, withTiming(userPos.x, { duration: 600 }));
       });
 
-      // remaining.forEach((card, index) => {
-      //   const newTarget = computeHandTarget(index, player);
-
-      //   card.handTarget.value = newTarget;
-      //   card.state.value = 'hand';
-
-      //   card.x.value = withTiming(newTarget.x, {
-      //     duration: 500,
-      //     easing: Easing.out(Easing.quad),
-      //   });
-      //   card.y.value = withTiming(newTarget.y, {
-      //     duration: 500,
-      //     easing: Easing.out(Easing.quad),
-      //   });
-      // });
+      setActivePlayerJs(activePlayer.value);
 
       console.log(
         `Removed ${removableCards.length} card(s). ${remaining.length} cards remaining.`,
       );
 
-      // setRemovedHighCards(r => ({
+      // setRemovedHighCards(r => ({d
       //   ...r,
       //   [player]: [...r[player], ...removableCards],rerj
       // }));
@@ -581,7 +639,17 @@ export default function Playground() {
         [player]: remaining,
       };
     });
-    // console.log(playerHands);r
+    if (previosCardReleased) {
+      const currentPlayer = activePlayer.value;
+      const card = playerHands[currentPlayer];
+      card.forEach(c => {
+        if (c.state.value === 'prevcard') {
+          c.state.value = 'hand';
+        }
+      });
+      setPreviosCardReleased(false);
+    }
+    // console.log(playerHands);rj
   }
 
   const cardHitTest = (x: number, y: number, card: CardData) => {
@@ -617,7 +685,7 @@ export default function Playground() {
       });
     });
   }, [playerHands, gameStarted]);
-  // Inside Playground componenthjj
+  // Inside Playground componenthjjaf
 
   const tapGesture = Gesture.Tap()
     .maxDuration(250)
@@ -633,8 +701,6 @@ export default function Playground() {
             return;
           } else if (card.state.value === 'deck') {
             if (prevCard && card.meta.id === prevCard.meta.id) return;
-
-            // 2. Call your existing functionk
             ReleaseOneMoreCard();
             return;
           }
@@ -649,15 +715,50 @@ export default function Playground() {
             removeHighestCards(card, currentPlayer);
 
             activePlayer.value = currentPlayer === 'p1' ? 'p2' : 'p1';
-          } else if (card.state.value === 'prevcard') {
+            setActivePlayerJs(activePlayer.value);
+          }
+          // previous cardg
+          else if (card.state.value === 'prevcard') {
             ReleasePrevCard();
-            return
+            return;
           }
         }
       }
     });
 
-  const endingManually = () => {
+  const resetAllCards = () => {
+    cards.forEach(card => {
+      card.state.value = 'deck';
+      card.faceup.value = false;
+      card.owner.value = 'unset';
+
+      card.x.value = deckX;
+      card.y.value = deckY;
+    });
+  };
+
+  // kjoijoij
+
+  const newGame = () => {
+    setShowModal(false);
+    setGameStarted(false);
+    resetAllCards();
+    setShuffledDeck(shuffleDeck([...cards]));
+    setPlayerHands({
+      p1: [],
+      p2: [],
+    });
+    setPrevCard(undefined);
+  };
+
+  const handleCancel = () => {
+    setShowModal(false);
+    // setTimeout(() => {
+    //   newGame();
+    // }, 2000);
+  };
+
+  const endingManually = (owner: player) => {
     const player1sum = playerHands.p1.reduce(
       (acc, n) => acc + n.meta.priority,
       0,
@@ -666,36 +767,41 @@ export default function Playground() {
       (acc, n) => acc + n.meta.priority,
       0,
     );
+    setShowModal(true);
+    console.log('function called');
 
     if (player1sum === player2sum) {
-      Alert.alert('sucecss', 'Draw game');
-      setGameStarted(false);
-      setShuffledDeck(shuffleDeck([...cards]));
-      setPlayerHands({
-        p1: [],
-        p2: [],
-      });
+      if (owner === 'p1') {
+        setWinningPlayer('p2');
+        console.log('called for player 2 when equal');
+        // Alert.alert('sucecss', 'Player2 wins the game');rwrfjfanferwr
+      } else {
+        setWinningPlayer('p1');
+
+        console.log('called for player 1 when equal');
+      }
     } else if (player1sum < player2sum) {
-      Alert.alert('sucecss', 'Player1 wins the game');
-      setGameStarted(false);
-      setShuffledDeck(shuffleDeck([...cards]));
-      setPlayerHands({
-        p1: [],
-        p2: [],
-      });
+      setWinningPlayer('p1');
+
+      console.log('called for player 1 when greater ');
     } else {
-      Alert.alert('sucecss', 'Player2 wins the game');
-      setGameStarted(false);
-      setShuffledDeck(shuffleDeck([...cards]));
-      setPlayerHands({
-        p1: [],
-        p2: [],
-      });
+      setWinningPlayer('p2');
+
+      console.log('called for player 2 when greater');
     }
   };
 
   return (
     <View style={{ width: width, height: height, backgroundColor: '#1e1e1e' }}>
+      {winningPlayer && (
+        <EndModal
+          visible={showModal}
+          player={winningPlayer}
+          onClose={() => handleCancel()}
+          onProceed={() => newGame()}
+        />
+      )}
+
       {!gameStarted ? (
         <View
           style={{
@@ -798,7 +904,7 @@ export default function Playground() {
                   <Text
                     text="P1"
                     x={user1Pos.x}
-                    y={user1Pos.y}
+                    y={user1Pos.y - 5}
                     font={defaultFont}
                     color="white"
                   />
@@ -843,7 +949,7 @@ export default function Playground() {
               {/* <Group>
                 {endButtonVisible.p1 && (
                   <View
-                    style={{
+                    style={{f
                       position: 'absolute',
                       left: endBtnPos.p1.x,
                       top: endBtnPos.p1.y,
@@ -874,7 +980,7 @@ export default function Playground() {
                       title="End"
                       onPress={() => {
                         console.log(
-                          'heyy i will end ur game nd life tooo hehe....',d
+                          'heyy i will end ur game nd life tooo hehe....',dk
                         );
                       }}
                     />
@@ -887,17 +993,18 @@ export default function Playground() {
             <View
               style={{
                 position: 'absolute',
-                left: endBtnPos.p1.x - 100, // Adjusted because widfth is 200
+                left: endBtnPos.p1.x, // Adjusted because widfth is 2000h
                 top: endBtnPos.p1.y,
                 width: 150,
                 height: 50,
-                zIndex: 10, // Ensure it sits on top of thef Canas
+                zIndex: 10, // Ensure it sits on top of thef Canasfrordaawf
               }}
             >
               <Button
                 title="End Turn P1"
-                color={'#d62929ff'}
-                onPress={() => endingManually()}
+                color={activePlayerJs !== 'p1' ? '#979393ff' : '#d62929ff'}
+                disabled={activePlayerJs !== 'p1'}
+                onPress={() => endingManually('p1')}
               />
             </View>
           )}
@@ -915,8 +1022,9 @@ export default function Playground() {
             >
               <Button
                 title="End Turn P2"
-                color={'#d62929ff'}
-                onPress={() => endingManually()}
+                color={activePlayerJs !== 'p2' ? '#979393ff' : '#d62929ff'}
+                disabled={activePlayerJs !== 'p2'}
+                onPress={() => endingManually('p2')}
               />
             </View>
           )}
