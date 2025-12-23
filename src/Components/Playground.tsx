@@ -357,9 +357,28 @@ export default function Playground() {
       console.log('cannot send card first release one card');
       return;
     }
-    const currentPlayer = activePlayer.value;
 
-    // const targetPos = currentPlayer === 'p1' ? urserrfw1Prs dd:jhr juser2Pos;j
+    let chkPrevCard = false;
+    const currentPlayer = activePlayer.value;
+    const hand = playerHands[currentPlayer];
+    hand.forEach(c => {
+      if (c.state.value === 'prevcard') {
+        c.state.value = 'hand';
+        chkPrevCard = true;
+      }
+    });
+
+    // if(chkPrevCard){
+    //   setPlayerHands(prev=>{
+    //     return {
+    //     ...prev,
+    //     [currentPlayer] : player
+    //   };
+
+    //   })
+    // }
+
+    // const targetPos = currentPlayer === 'p1' ? urserrfw1Prsr dd:jhr juser2Pos;jf
     cardToRelease.owner.value = currentPlayer;
     cardToRelease.state.value = 'hand';
     cardToRelease.faceup.value = true;
@@ -369,17 +388,17 @@ export default function Playground() {
 
     cardToRelease.handTarget.value = target;
 
-    if (currentPlayer === 'p1') {
-      const target = computeHandTarget(0, currentPlayer);
+    // if (currentPlayer === 'p1') {
+    //   const target = computeHandTarget(0, currentPlayer);
 
-      cardToRelease.x.value = withTiming(target.x, {
-        duration: 600,
-      });
-    } else {
-      cardToRelease.x.value = withTiming(target.x, { duration: 600 });
-    }
+    //   cardToRelease.x.value = withTiming(target.x, {
+    //     duration: 600,
+    //   });
+    // } else {
+    //   cardToRelease.x.value = withTiming(target.x, { duration: 600 });a
+    // }
 
-    // cardToRelease.x.value = withTiming(target.x, { duration:r 600 });r
+    cardToRelease.x.value = withTiming(target.x, { duration: 600 });
 
     cardToRelease.y.value = withTiming(target.y, { duration: 600 });
 
@@ -391,7 +410,7 @@ export default function Playground() {
 
     // setTimeout(() => {
     // removeHighestCards(activePlayer.value);krfa
-    // activePlayer.value = activePlayer.value === 'p1' ? 'p2' : 'p1';f
+    // activePlayer.value = activePlayer.value === 'p1' ? 'p2' : 'p1';ft
     // }, 700);ar
     // activePlayer.value = currentPlayer==='p1' ? 'p2' : 'p1';
   };
@@ -417,7 +436,7 @@ export default function Playground() {
 
     // const targetPos = currentPlayer === 'p1' ? urserrfw1Prs dd:r juser2Pofsf;ffkjnfrrrrk
     cardToRelease.owner.value = currentPlayer;
-    // cardToRelease.state.value = 'hand';
+    cardToRelease.state.value = 'prevcard';
     cardToRelease.faceup.value = true;
 
     const slotIndex = playerHands[currentPlayer].length;
@@ -425,29 +444,28 @@ export default function Playground() {
     const target = computeHandTarget(slotIndex, currentPlayer);
 
     cardToRelease.handTarget.value = target;
-            cardToRelease.state.value = 'prevcard';
-
+    // cardToRelease.state.value = 'prevcard';
 
     cardToRelease.x.value = withTiming(target.x, { duration: 600 });
     cardToRelease.y.value = withTiming(target.y, { duration: 600 });
 
     addCardToPlayer(cardToRelease, currentPlayer);
 
-
-     const cardaa = playerHands[currentPlayer];
+    console.log('hand cards after removing the previous card');
+    const cardaa = playerHands[currentPlayer];
     cardaa.forEach(c => console.log(c.meta.priority, c.state.value));
 
-
     // blocking card of similar priorityr
-    cardToRelease.state.value = 'prevcard';
-    const cards = playerHands[currentPlayer];
-    if (slotIndex > 2) {
-      cards.forEach(c => {
-        if (c.meta.priority === prevCard.meta.priority) {
-          c.state.value = 'prevcard';
-        }
-      });
-    }
+    // cardToRelease.state.value = 'prevcard';
+
+    // const cards = playerHands[currentPlayer];
+    // if (slotIndex > 2) {
+    //   cards.forEach(c => {
+    //     if (c.meta.priority === prevCard.meta.priority) {
+    //       c.state.value = 'prevcard';rr
+    //     }
+    //   });
+    // }
 
     // if (slotIndex === 1) {
     //   const card = playerHands[currentPlayer];
@@ -457,6 +475,7 @@ export default function Playground() {
     setPrevCard(undefined);
     setSendCard(false);
     const card = playerHands[currentPlayer];
+    console.log('value for and from the prec card function ');
     card.forEach(c => console.log(c.meta.priority));
 
     // setShuffledDeck(prev => prev.slice(1));r
@@ -484,7 +503,7 @@ export default function Playground() {
       } else if (playerHands.p2.length === 0 && playerHands.p1.length !== 0) {
         endingManually('p1');
 
-        // Alert.alert('Success', 'Player 2 Wins!');
+        // Alert.alert('Success', 'Player 2 Wins!');g
         // setGameStarted(false);
       }
 
@@ -514,6 +533,9 @@ export default function Playground() {
     setPlayerHands(prev => {
       const hand = prev[player];
       if (!hand) return prev;
+
+      // console.log('hand');
+      // hand.forEach(c => console.log(c.state.value, c.meta.priority));
 
       {
         /**
@@ -572,12 +594,23 @@ export default function Playground() {
         */
       }
 
+      // console.log('hand');
+      // hand.forEach(c => console.log(c.state.value, c.meta.priority));
+
       let removableCards: CardData[] = hand.filter(
         c => c.meta.priority === card.meta.priority && c.state.value === 'hand',
       );
-      removableCards.forEach(c=>console.log(c.state.value, c.meta.priority))
+      console.log('removable card data is following ');
 
-      let remaining = hand.filter(c => c.meta.priority !== card.meta.priority);
+      removableCards.forEach(c => console.log(c.state.value, c.meta.priority));
+
+      const removableIds = new Set(removableCards.map(c => c.meta.id));
+
+      const remaining = hand.filter(c => !removableIds.has(c.meta.id));
+
+      console.log('remaining card data is following ');
+
+      remaining.forEach(c => console.log(c.state.value, c.meta.priority));
 
       if (removableCards.length === 0) return prev;
 
@@ -587,7 +620,7 @@ export default function Playground() {
           : { x: user2Pos.x, y: user2Pos.y + 110 };
 
       // removableCards.forEach(card => {t
-      //   console.log(' removable dcard id : ', card .meta.priority);wnmdf
+      //   console.log(' removable dcard id : ', card .meta.priority);wnmdfrdd
       // });
 
       const newCard = removableCards.pop();
@@ -604,10 +637,10 @@ export default function Playground() {
       }
 
       if (newCard) {
-        newCard.state.value = 'prevcard'; // Logically "on table"
+        newCard.state.value = 'prevcard'; //
         newCard.x.value = withTiming(prevCardX, { duration: 500 });
         newCard.y.value = withTiming(prevCardY, { duration: 500 });
-        setPrevCard(newCard); // Update the React state referenkcerekkkhjkf
+        setPrevCard(newCard); //referenkcerekkkhjkf
       }
 
       removableCards.forEach(card => {
@@ -639,17 +672,22 @@ export default function Playground() {
         [player]: remaining,
       };
     });
-    if (previosCardReleased) {
-      const currentPlayer = activePlayer.value;
-      const card = playerHands[currentPlayer];
-      card.forEach(c => {
+    // if (previosCardReleased) {
+    const currentPlayer = activePlayer.value;
+    const cards = playerHands[currentPlayer];
+    const samePriorityCards = cards.filter(
+      c => c.meta.priority === card.meta.priority,
+    );
+    if (cards.length !== samePriorityCards.length) {
+      cards.forEach(c => {
         if (c.state.value === 'prevcard') {
           c.state.value = 'hand';
         }
       });
       setPreviosCardReleased(false);
     }
-    // console.log(playerHands);rj
+    // }
+    // console.log(playerHands);rjwe
   }
 
   const cardHitTest = (x: number, y: number, card: CardData) => {
@@ -685,7 +723,7 @@ export default function Playground() {
       });
     });
   }, [playerHands, gameStarted]);
-  // Inside Playground componenthjjaf
+  // Inside Playground componenthjjaffe
 
   const tapGesture = Gesture.Tap()
     .maxDuration(250)
@@ -699,9 +737,16 @@ export default function Playground() {
           if (card.state.value === 'player') {
             moveCardToHand(card);
             return;
-          } else if (card.state.value === 'deck') {
+          }
+          // deck
+          else if (card.state.value === 'deck') {
             if (prevCard && card.meta.id === prevCard.meta.id) return;
             ReleaseOneMoreCard();
+            const currentPlayer = activePlayer.value;
+            console.log('ReleaseOneMoreCard : ');
+
+            const cardaa = playerHands[currentPlayer];
+            cardaa.forEach(c => console.log(c.meta.priority, c.state.value));
             return;
           }
           // hand
@@ -713,6 +758,11 @@ export default function Playground() {
               return;
             }
             removeHighestCards(card, currentPlayer);
+            // const currentPlayer = activePlayer.value;
+            console.log('removeHighestCards : ');
+
+            const cardaa = playerHands[currentPlayer];
+            cardaa.forEach(c => console.log(c.meta.priority, c.state.value));
 
             activePlayer.value = currentPlayer === 'p1' ? 'p2' : 'p1';
             setActivePlayerJs(activePlayer.value);
@@ -720,6 +770,13 @@ export default function Playground() {
           // previous cardg
           else if (card.state.value === 'prevcard') {
             ReleasePrevCard();
+            const currentPlayer = activePlayer.value;
+
+            console.log('ReleasePrevCard : ');
+
+            const cardaa = playerHands[currentPlayer];
+            cardaa.forEach(c => console.log(c.meta.priority, c.state.value));
+
             return;
           }
         }
