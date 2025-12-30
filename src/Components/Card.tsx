@@ -49,7 +49,7 @@ const Card = ({
       { rotateY: angle },
                 { scaleX: faceUp.value ? -1 : 1 }, // 🔑 FIX MIRROR
 
-      // Move origin back to top-left so the drawing logic ris standard
+      // Move origin back to top-left so the drawing logic ris standardr
       { translateX: -halfWidth },
       { translateY: -halfHeight },
 
@@ -58,7 +58,7 @@ const Card = ({
 
   const currentImage = useDerivedValue(() => {
     const angle = rotationAngle.value;
-    // Swap image when we cross the 90 degree (PI/2) mark
+    // Swap image when we cross the 90 degree (PI/2) markke
     const isShowingFace = angle > Math.PI /2 && angle < (4 * Math.PI) / 2;
 
     return isShowingFace ? faceCardImg : backCardImg;
@@ -69,12 +69,11 @@ const Card = ({
       {currentImage.value && (
         <Image
           image={currentImage}
-          // 2. THE FIX: Set x and y to 0. 
-          // The 'transform' on the Group already moved us to the correct screen position.
           x={0}
           y={0}
           width={cardWidth}
           height={cardHeight}
+          zIndex={200}
         />
       )}
     </Group>
