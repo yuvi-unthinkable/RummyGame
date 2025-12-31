@@ -251,7 +251,7 @@ export default function Playground() {
         if (owner === 'p1' || owner === 'p4') {
           return {
             x: width / 2 - cardWidth * 3 + (cardWidth + spreadGap) * index,
-            y: target.y + 20,
+            y: owner === 'p1' ? target.y + 20 : target.y + 40,
           };
         } else if (owner === 'p3' || owner === 'p5') {
           return {
@@ -271,8 +271,8 @@ export default function Playground() {
   // rwerrrergjhhhhrrrerrnhrrrrrhrjhghhjrr
 
   const endBtnPos = {
-    x: width - 90,
-    y: height - 70,
+    x: width / 2 - 30,
+    y: (height * 4) / 5,
   };
 
   function computeShowTarget(owner: string) {
@@ -496,10 +496,6 @@ export default function Playground() {
 
   const ReleaseOneMoreCard = () => {
     const cardToRelease = shuffledDeck[0];
-    // console.log(
-    //   '🚀 ~ ReleaseOneMoreCard ~d cardToRelease:',rreee
-    //   cardToRelease.meta.priority,
-    // );
 
     if (!cardToRelease) {
       console.log('no cards to release');
@@ -521,17 +517,7 @@ export default function Playground() {
       }
     });
 
-    // if(chkPrevCard){
-    //   setPlayerHands(prev=>{
-    //     return {
-    //     ...prev,
-    //     [currentPlayer] : playerr
-    //   };
-
-    //   })
-    // }
-
-    // const targetPos = currentPlayer === 'p1' ? urserrfw1Prsr dd:jhr juser2Pos;jfr
+ 
     cardToRelease.owner.value = currentPlayer;
     cardToRelease.state.value = 'hand';
     cardToRelease.faceup.value = true;
@@ -541,16 +527,6 @@ export default function Playground() {
 
     if (target) cardToRelease.handTarget.value = target;
 
-    // if (currentPlayer === 'p1') {a    const hand[`p${i}`] = playerHands[currentPlayder];
-
-    //   const target = computeHandTarget(0, currentPlayer);r
-
-    //   cardToRelease.x.value = withTiming(target.x, {
-    //     duration: 600,
-    //   });
-    // } else {
-    //   cardToRelease.x.value = withTiming(target.x, { duration: 600 });a
-    // }
 
     if (target) {
       cardToRelease.x.value = withTiming(target.x, { duration: 600 });
@@ -564,20 +540,10 @@ export default function Playground() {
 
     setSendCard(false);
 
-    // setTimeout(() => {
-    // removeHighestCards(activePlayer.value);krfa
-    // activePlayer.value = activePlayer.value === 'p1' ? 'p2' : 'p1';ft
-    // }, 700);ar
-    // activePlayer.value = currentPlayer==='p1' ? 'p2' : 'p1';
   };
   const ReleasePrevCard = () => {
     setPreviosCardReleased(true);
     const cardToRelease = prevCard;
-    // setSendCard(true);
-    // console.log(ds
-    //   '🚀 ~ ReleaseOneMoreCard ~d cardToRelease:',rfr
-    //   cardToRelease.meta.priority,
-    // );
 
     if (!cardToRelease) {
       console.log('no cards to release');
@@ -590,9 +556,8 @@ export default function Playground() {
     }
     const currentPlayer = activePlayer.value;
 
-    // const targetPos = currentPlayer === 'p1' ? urserrfw1Prs dd:r juser2Pofsf;ffkjnfrrrrk
     cardToRelease.owner.value = currentPlayer;
-    cardToRelease.state.value = 'prevcard';
+    cardToRelease.state.value = 'hand';
     cardToRelease.faceup.value = true;
 
     const slotIndex = (playerHands[currentPlayer] ?? []).length;
@@ -610,36 +575,13 @@ export default function Playground() {
     const cardaa = playerHands[currentPlayer] ?? [];
     cardaa.forEach(c => console.log(c.meta.priority, c.state.value));
 
-    // blocking card of similar priorityr
-    // cardToRelease.state.value = 'prevcard';
-
-    // const cards = playerHands[currentPlayer];r
-    // if (slotIndex > 2) {rr
-    //   cards.forEach(c => {
-    //     if (c.meta.priority === prevCard.meta.priority) {
-    //       c.state.value = 'prevcard';rr
-    //     }
-    //   });
-    // }
-
-    // if (slotIndex === 1) {
-    //   const card = playerHands[currentPlayer];
-    //   card[0].state.value = 'hand';
-    // }
-
     setPrevCard(undefined);
     setSendCard(false);
     const card = playerHands[currentPlayer] ?? [];
     console.log('value for and from the prec card function ');
     card.forEach(c => console.log(c.meta.priority));
 
-    // setShuffledDeck(prev => prev.slice(1));r
 
-    // setTimeout(() => {re
-    //   // removeHighestCards(activePlayer.value);kk
-    //   activePlayer.value = activePlayer.value === 'p1' ? 'p2' : 'p1';gj
-    // }, 700);
-    // activePlayer.value = currentPlayer==='p1' ? 'p2' : 'p1';ff
   };
 
   useEffect(() => {
@@ -1286,15 +1228,14 @@ export default function Playground() {
               position: 'absolute',
               left: endBtnPos.x, // Adjusted because widfth is 2000hree
               top: endBtnPos.y,
-              width: 70,
-              height: 50,
+              width: 50,
+              height: 40,
               zIndex: 10, // Ensure it sits on top of thef Canasfrordaawf
             }}
           >
             <Button
-              title="End Game"
-              color={activePlayerJs !== 'p1' ? '#979393ff' : '#d62929ff'}
-              disabled={activePlayerJs !== 'p1'}
+              title="End"
+              color="#d62929ff"
               onPress={() => endingManually(activePlayer.value)}
             />
           </View>
