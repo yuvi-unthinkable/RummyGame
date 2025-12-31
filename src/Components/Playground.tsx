@@ -159,6 +159,8 @@ export default function Playground() {
   const ACTIVE_CARDS = cardsPerPlayer * playersCount; // 6adjrrrrksdarfddjfkrrr
   const abandonedCardsRef = useRef<CardData[]>([]);
 
+  const playersOpenedCards = useSharedValue(0);
+
   // setTimeout(() => {}, 100);
 
   const userPositions = useMemo(() => {
@@ -461,6 +463,28 @@ export default function Playground() {
       easing: Easing.out(Easing.quad),
     });
   };
+  const moveCardToHandFromdeck = (owner: playerId) => {
+    'worklet';
+    const hand = playerHands[owner];
+    {
+      hand[0].state.value === 'player' &&
+        hand.forEach(card => {
+          card.state.value = 'hand';
+          card.faceup.value = true;
+
+          card.x.value = withTiming(card.handTarget.value.x, {
+            duration: 400,
+            easing: Easing.out(Easing.quad),
+          });
+
+          card.y.value = withTiming(card.handTarget.value.y, {
+            duration: 400,
+            easing: Easing.out(Easing.quad),
+          });
+        });
+      playersOpenedCards.value += 1;
+    }
+  };
 
   const playCardToTable = (card: CardData) => {
     'worklet';
@@ -517,7 +541,6 @@ export default function Playground() {
       }
     });
 
- 
     cardToRelease.owner.value = currentPlayer;
     cardToRelease.state.value = 'hand';
     cardToRelease.faceup.value = true;
@@ -526,7 +549,6 @@ export default function Playground() {
     const target = computeHandTarget(slotIndex, currentPlayer);
 
     if (target) cardToRelease.handTarget.value = target;
-
 
     if (target) {
       cardToRelease.x.value = withTiming(target.x, { duration: 600 });
@@ -539,7 +561,6 @@ export default function Playground() {
     setShuffledDeck(prev => prev.slice(1));
 
     setSendCard(false);
-
   };
   const ReleasePrevCard = () => {
     setPreviosCardReleased(true);
@@ -580,8 +601,6 @@ export default function Playground() {
     const card = playerHands[currentPlayer] ?? [];
     console.log('value for and from the prec card function ');
     card.forEach(c => console.log(c.meta.priority));
-
-
   };
 
   useEffect(() => {
@@ -910,11 +929,14 @@ export default function Playground() {
           // player
           if (card.state.value === 'player') {
             setactiveDeck(true);
-            moveCardToHand(card);
+            moveCardToHandFromdeck(card.owner.value);
             return;
           }
           // deck
-          else if (card.state.value === 'deck') {
+          else if (
+            card.state.value === 'deck' &&
+            playersOpenedCards.value === playersCount
+          ) {
             if (prevCard && card.meta.id === prevCard.meta.id) return;
             ReleaseOneMoreCard();
             const currentPlayer = activePlayer.value;
@@ -926,6 +948,11 @@ export default function Playground() {
           }
           // hand
           else if (card.state.value === 'hand') {
+            console.log(
+              '🚀 ~ Playground ~ playersOpenedCards === playersCount:',
+              playersOpenedCards,
+            );
+            console.log('🚀 ~ >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>:', playersCount);
             const currentPlayer = activePlayer.value;
 
             if (card.owner.value !== currentPlayer) {
@@ -1223,22 +1250,24 @@ export default function Playground() {
             </Canvas>
           </GestureDetector>
 
-          <View
-            style={{
-              position: 'absolute',
-              left: endBtnPos.x, // Adjusted because widfth is 2000hree
-              top: endBtnPos.y,
-              width: 50,
-              height: 40,
-              zIndex: 10, // Ensure it sits on top of thef Canasfrordaawf
-            }}
-          >
-            <Button
-              title="End"
-              color="#d62929ff"
-              onPress={() => endingManually(activePlayer.value)}
-            />
-          </View>
+          {playersOpenedCards.value === playersCount && (
+            <View
+              style={{
+                position: 'absolute',
+                left: endBtnPos.x, // Adjusted because widfth is 2000hree
+                top: endBtnPos.y,
+                width: 50,
+                height: 40,
+                zIndex: 10, // Ensure it sits on top of thef Canasfrordaawf
+              }}
+            >
+              <Button
+                title="End"
+                color="#d62929ff"
+                onPress={() => endingManually(activePlayer.value)}
+              />
+            </View>
+          )}
 
           {/* 
 
