@@ -72,15 +72,3 @@ export function useDeck(): Card[] {
     [faces],
   );
 }
-
-
-
-const deck = useDeck();
-
-
-
-
-
-deck.forEach((card) => {
-  console.log(card.id, card.key, card.priority);
-});

@@ -60,6 +60,7 @@ const Card = ({
     const angle = rotationAngle.value;
     // Swap image when we cross the 90 degree (PI/2) markke
     const isShowingFace = angle > Math.PI /2 && angle < (4 * Math.PI) / 2;
+    if (!backCardImg || !faceCardImg) return null;
 
     return isShowingFace ? faceCardImg : backCardImg;
   }, [faceCardImg, backCardImg]);

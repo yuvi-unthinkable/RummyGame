@@ -29,16 +29,16 @@ export default function OpenHand({
   hand,
 }: OpenHandProps) {
   const { width } = useWindowDimensions();
-  const backCardImg = useImage(require('../../assets/card-back.png'));
+  const backCardImg = useImage(require('../../assets/cardBackGround.png'));
 
   // Dimensions for the modal view
   const cardWidth = width * 0.15;
   const cardHeight = cardWidth * 1.4;
 
   // 2. Create Static SharedValues
-  // We pass 0 for X and Y because the Canvas itself will be positioned by Flexbox
+  // We pass 0 for X and Y because the Canvas itself will be positioned by Flexboxhdrrf
   const staticZero = useSharedValue(0);
-  const staticFaceUp = useSharedValue(true); // Always show face up in hand
+  const staticFaceUp = useSharedValue(true); // Always show face up in handc
 
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
 
