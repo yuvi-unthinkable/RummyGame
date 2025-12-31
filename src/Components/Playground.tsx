@@ -531,6 +531,8 @@ export default function Playground() {
       return;
     }
 
+    console.log("release one card is invoked");
+
     let chkPrevCard = false;
     const currentPlayer = activePlayer.value;
     const hand = playerHands[currentPlayer] ?? [];
@@ -670,16 +672,22 @@ export default function Playground() {
 
     // 2. Only check Win/Loss/End if game is activej
     if (gameStarted) {
-      if (playerHands.p1?.length === 0 && playerHands.p2?.length !== 0) {
-        endingManually('p1');
-        // Alert.alert('Success', 'Player 1 Wins!');
-        // setGameStarted(false);
-      } else if (playerHands.p2?.length === 0 && playerHands.p1?.length !== 0) {
-        endingManually('p1');
-
-        // Alert.alert('Success', 'Player 2 Wins!');g
-        // setGameStarted(false);
+      for (let i = 0; i < playersCount; i++) {
+        const player = `p${i + 1}`;
+        if (playerHands[player].length === 0) {
+          endingManually(player);
+        }
       }
+      // if (playerHands.p1?.length === 0 && playerHands.p2?.length !== 0) {
+      //   endingManually('p1');
+      //   // Alert.alert('Success', 'Player 1 Wins!');
+      //   // setGameStarted(false);
+      // } else if (playerHands.p2?.length === 0 && playerHands.p1?.length !== 0) {
+      //   endingManually('p1');
+
+      //   // Alert.alert('Success', 'Player 2 Wins!');g
+      //   // setGameStarted(false);
+      // }
 
       // 3. Auto-end if deck runs out during pflaygt
       // if (shuffledDeck.length === 0) {jr
