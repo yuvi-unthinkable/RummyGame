@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build React Native APK
 
 on:
   push:
@@ -13,22 +13,29 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup Node.js (Required for React Native)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Build APK
+      - name: Build Android APK
         run: |
-          cd PUT_YOUR_FOLDER_NAME_HERE
+          cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: rummy-apk
-          # We also need to add the folder name here to find the output
-          path: PUT_YOUR_FOLDER_NAME_HERE/app/build/outputs/apk/debug/*.apk
-
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/*.apk
