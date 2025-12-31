@@ -1,4 +1,4 @@
-name: Build React Native APK
+name: Build Release APK
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20 (Required for your project)
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -28,14 +28,24 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Build Android APK
+      - name: Build and Sign Release APK
         run: |
           cd android
+          # 1. Generate a temporary keystore file
+          keytool -genkeypair -v -keystore my-release-key.keystore -alias my-key-alias -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Android,O=Android,C=US"
+          
+          # 2. Make gradlew executable
           chmod +x gradlew
-          ./gradlew assembleDebug
+          
+          # 3. Build Release (Injecting the signing info directly)
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$(pwd)/my-release-key.keystore \
+            -Pandroid.injected.signing.store.password=123456 \
+            -Pandroid.injected.signing.key.alias=my-key-alias \
+            -Pandroid.injected.signing.key.password=123456
 
-      - name: Upload APK
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: app-release
+          path: android/app/build/outputs/apk/release/*.apk
