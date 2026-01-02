@@ -71,7 +71,6 @@ const data = [
   { label: '4 Players', value: 4 },
   { label: '5 Players', value: 5 },
   { label: '6 Players', value: 6 },
-  { label: '7 Players', value: 7 },
 ];
 
 type Positions = {
@@ -89,6 +88,7 @@ export default function Playground() {
   const [winningPlayer, setWinningPlayer] = useState<playerId>();
 
   const [previosCardReleased, setPreviosCardReleased] = useState(false);
+  const [cardReleased, setCardReleased] = useState(false);
   const [sendCard, setSendCard] = useState(true);
   const cardsOnTableCount = useSharedValue(0);
   const [endButtonVisible, setEndButtonVisible] = useState<EndButtonVisible>({
@@ -519,6 +519,7 @@ export default function Playground() {
   };
 
   const ReleaseOneMoreCard = () => {
+    setCardReleased(true);
     const cardToRelease = shuffledDeck[0];
 
     if (!cardToRelease) {
@@ -531,7 +532,7 @@ export default function Playground() {
       return;
     }
 
-    console.log("release one card is invoked");
+    console.log('release one card is invoked');
 
     let chkPrevCard = false;
     const currentPlayer = activePlayer.value;
@@ -580,11 +581,19 @@ export default function Playground() {
     const currentPlayer = activePlayer.value;
 
     cardToRelease.owner.value = currentPlayer;
-    cardToRelease.state.value = 'hand';
+    cardToRelease.state.value = 'prevcard';
     cardToRelease.faceup.value = true;
 
     const slotIndex = (playerHands[currentPlayer] ?? []).length;
     const target = computeHandTarget(slotIndex, currentPlayer);
+    const hand = playerHands[currentPlayer];
+    if (slotIndex > 2) {
+      hand.filter(c => {
+        if (c.meta.priority === cardToRelease.meta.priority) {
+          c.state.value = 'prevcard';
+        }
+      });
+    }
 
     if (target) {
       cardToRelease.handTarget.value = target;
@@ -606,7 +615,6 @@ export default function Playground() {
   };
 
   useEffect(() => {
-    // 1. Initialize deck once assets are readr
     if (cardDeck?.length > 0 && shuffledDeck?.length === 0 && !gameStarted) {
       const freshdeck = shuffleDeck([...cards]);
       setShuffledDeck(freshdeck);
@@ -622,12 +630,9 @@ export default function Playground() {
         abandonedCardsRef.current?.length,
       );
 
-      // 1. Get the cards from the ref
       const cardsToReset = [...abandonedCardsRef.current];
 
-      // 2. PHYSICAL RESET: Tell the UI where these cards are now
       cardsToReset.forEach(card => {
-        // Reset SharedValues so they appear back at the deck position
         card.x.value = deckX;
         card.y.value = deckY;
         card.state.value = 'deck';
@@ -635,11 +640,9 @@ export default function Playground() {
         card.owner.value = 'unset';
       });
 
-      // 3. Shuffle and update state
       const freshDeck = shuffleDeck(cardsToReset);
       setShuffledDeck(freshDeck);
 
-      // 4. Clear the ref so we don't duplicate cards
       abandonedCardsRef.current = [];
     }
 
@@ -666,11 +669,9 @@ export default function Playground() {
 
       setShuffledDeck(freshDeck);
 
-      // 4. Clear the ref so we don't duplicate cardsk
       abandonedCardsRef.current = [];
     }
 
-    // 2. Only check Win/Loss/End if game is activej
     if (gameStarted) {
       for (let i = 0; i < playersCount; i++) {
         const player = `p${i + 1}`;
@@ -702,16 +703,26 @@ export default function Playground() {
     //   setRemoving(false);
     //   setRemovableCard(undefined);jk
     // }
-  }, [
-    playerHands,
-    // removing,
-    // removableCard,
-    cards,
-    gameStarted,
-    shuffledDeck?.length,
-  ]);
+  }, [playerHands, cards, gameStarted, shuffledDeck?.length]);
   function removeHighestCards(card: CardData, player: playerId) {
     setSendCard(true);
+    if (previosCardReleased) {
+      
+      const currentPlayer = activePlayer.value;
+      const cards = playerHands[currentPlayer] ?? [];
+      if(cards.length===2) return;
+      const samePriorityCards = cards.filter(
+        c => c.meta.priority === card.meta.priority,
+      );
+      if (cards?.length !== samePriorityCards?.length) {
+        cards.forEach(c => {
+          if (c.state.value === 'prevcard') {
+            c.state.value = 'hand';
+          }
+        });
+        setPreviosCardReleased(false);
+      }
+    }
     setPlayerHands(prev => {
       const hand = prev[player] ?? [];
       if (!hand) return prev;
@@ -862,21 +873,8 @@ export default function Playground() {
         [player]: remaining,
       };
     });
-    // if (previosCardReleased) {
-    const currentPlayer = activePlayer.value;
-    const cards = playerHands[currentPlayer] ?? [];
-    const samePriorityCards = cards.filter(
-      c => c.meta.priority === card.meta.priority,
-    );
-    if (cards?.length !== samePriorityCards?.length) {
-      cards.forEach(c => {
-        if (c.state.value === 'prevcard') {
-          c.state.value = 'hand';
-        }
-      });
-      setPreviosCardReleased(false);
-    }
-    // }
+    setCardReleased(false);
+
     // console.log(playerHands);rjwe
   }
 
@@ -915,7 +913,7 @@ export default function Playground() {
         if (newTarget) {
           card.handTarget.value = newTarget;
 
-          if (card.state.value === 'hand') {
+          if (card.state.value === 'hand' || card.state.value === 'prevcard') {
             card.x.value = withTiming(newTarget.x, { duration: 500 });
             card.y.value = withTiming(newTarget.y, { duration: 500 });
           }
@@ -945,22 +943,14 @@ export default function Playground() {
             card.state.value === 'deck' &&
             playersOpenedCards.value === playersCount
           ) {
-            if (prevCard && card.meta.id === prevCard.meta.id) return;
+            console.log('hiiii there');
             ReleaseOneMoreCard();
-            const currentPlayer = activePlayer.value;
-            console.log('ReleaseOneMoreCard : ');
-
-            // const cardaa = playerHands[currentPlayer];
-            // cardaa.forEach(c => console.log(c.meta.priority, c.state.value));
             return;
           }
           // hand
           else if (card.state.value === 'hand') {
-            console.log(
-              '🚀 ~ Playground ~ playersOpenedCards === playersCount:',
-              playersOpenedCards,
-            );
-            console.log('🚀 ~ >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>:', playersCount);
+            if (!cardReleased && !previosCardReleased) return;
+
             const currentPlayer = activePlayer.value;
 
             if (card.owner.value !== currentPlayer) {
@@ -968,10 +958,6 @@ export default function Playground() {
               return;
             }
             removeHighestCards(card, currentPlayer);
-            // console.log('removeHighestCards : ');
-
-            // const cardaa = playerHands[currentPlayer];
-            // cardaa.forEach(c => console.log(c.meta.priority, c.state.value));
 
             let currentActivePlayerIndex =
               (parseInt(currentPlayer[1]) + 1) % playersCount;
@@ -989,16 +975,9 @@ export default function Playground() {
             activePlayer.value = `p${currentActivePlayerIndex}`;
             setActivePlayerJs(activePlayer.value);
           }
-          // previorus cardg
+          // previous
           else if (card.state.value === 'prevcard') {
             ReleasePrevCard();
-            const currentPlayer = activePlayer.value;
-
-            console.log('ReleasePrevCard : ');
-
-            // const cardaa = playerHands[currentPlayer];
-            // cardaa.forEach(c => console.log(c.meta.priority, c.state.value));
-
             return;
           }
         }
@@ -1060,7 +1039,10 @@ export default function Playground() {
       setWinningPlayer(winners.join(' & '));
     }
 
+    playersOpenedCards.value = 0;
     setShowModal(true);
+    setPreviosCardReleased(false);
+    setCardReleased(false);
   };
 
   return (
@@ -1264,15 +1246,16 @@ export default function Playground() {
                 position: 'absolute',
                 left: endBtnPos.x, // Adjusted because widfth is 2000hree
                 top: endBtnPos.y,
-                width: 50,
+                width: 65,
                 height: 40,
                 zIndex: 10, // Ensure it sits on top of thef Canasfrordaawf
               }}
             >
               <Button
-                title="End"
+                title={`End ${activePlayer.value}`}
                 color="#d62929ff"
                 onPress={() => endingManually(activePlayer.value)}
+                disabled={previosCardReleased || cardReleased}
               />
             </View>
           )}
