@@ -3,9 +3,13 @@ import React from 'react';
 
 type endModalProps = {
   visible: boolean;
-  player: string;
+  player?: string;
   onClose: () => void;
-  onProceed: () => void;
+  onProceed?: () => void;
+  heading: string;
+  message: string;
+  button1: string;
+  button2: string;
 };
 
 export default function EndModal({
@@ -13,6 +17,10 @@ export default function EndModal({
   onClose,
   player,
   onProceed,
+  heading,
+  message,
+  button1,
+  button2,
 }: endModalProps) {
   console.log('called reached to the component');
 
@@ -21,15 +29,21 @@ export default function EndModal({
       <View style={styles.wrapper}>
         <View style={styles.box}>
           <View>
-            <Text style={styles.title}>Game Ended</Text>
-            <Text style={styles.description}>{player} has won the game</Text>
+            <Text style={styles.title}>{heading}</Text>
+            <Text style={styles.description}>{message}</Text>
           </View>
-          <View style={{width:'100%', flexDirection:'row', justifyContent:'space-around'}}>
+          <View
+            style={{
+              width: '100%',
+              flexDirection: 'row',
+              justifyContent: 'space-around',
+            }}
+          >
             <Pressable onPress={onClose}>
-              <Text style={styles.btn}>Result</Text>
+              <Text style={styles.btn}>{button1}</Text>
             </Pressable>
             <Pressable onPress={onProceed}>
-              <Text style={[styles.btn,{color:'green'}]}>New Game</Text>
+              <Text style={[styles.btn, { color: 'green' }]}>{button2}</Text>
             </Pressable>
           </View>
         </View>
@@ -46,7 +60,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   box: { width: 300, padding: 20, borderRadius: 12, backgroundColor: '#fff' },
-  title: { fontSize: 18, fontWeight: '600' , textTransform:'uppercase' },
-  description: { marginVertical: 20, textTransform:'capitalize' },
+  title: { fontSize: 18, fontWeight: '600', textTransform: 'uppercase' },
+  description: { marginVertical: 20, textTransform: 'capitalize' },
   btn: { textAlign: 'right', color: 'blue' },
 });

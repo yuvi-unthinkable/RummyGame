@@ -100,9 +100,12 @@ export default function Playground() {
   );
 
   const [showModal, setShowModal] = useState(false);
+  const [quitModal, setQuitModal] = useState(false);
   const [activeDeck, setactiveDeck] = useState(false);
   const [playersCount, setPlayersCount] = useState(2);
   const [selectedCard, setSelectedCard] = useState<CardData>();
+  const [quitConfirmation, setQuitConfirmation] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
 
   // const [removing, setRemoving] = useState(false);
   // const [removableCard, setRemovableCard] = usfseState<CardData>();ffddsdhfr
@@ -397,12 +400,14 @@ export default function Playground() {
     for (let index = 0; index < activeSubset.length; index++) {
       const card = activeSubset[index];
 
-      const playerIndex = Math.floor(index / cardsPerPlayer);
+      const playerIndex = index % playersCount;
       if (playerIndex >= playersCount) break;
 
       const newOwner = `p${playerIndex + 1}`;
 
-      const indexInHand = index % cardsPerPlayer;
+      const indexInHand = Math.floor(index / playersCount);
+
+      if (playerIndex >= playersCount) break;
 
       const target = userPositions[playerIndex];
       if (!target) return;
@@ -587,7 +592,11 @@ export default function Playground() {
     const slotIndex = (playerHands[currentPlayer] ?? []).length;
     const target = computeHandTarget(slotIndex, currentPlayer);
     const hand = playerHands[currentPlayer];
-    if (slotIndex > 2) {
+    const samePriorityCards = hand.filter(
+      c => c.meta.priority === cardToRelease.meta.priority,
+    );
+
+    if (slotIndex !== samePriorityCards?.length) {
       hand.filter(c => {
         if (c.meta.priority === cardToRelease.meta.priority) {
           c.state.value = 'prevcard';
@@ -707,10 +716,9 @@ export default function Playground() {
   function removeHighestCards(card: CardData, player: playerId) {
     setSendCard(true);
     if (previosCardReleased) {
-      
       const currentPlayer = activePlayer.value;
       const cards = playerHands[currentPlayer] ?? [];
-      if(cards.length===2) return;
+      if (cards.length === 2) return;
       const samePriorityCards = cards.filter(
         c => c.meta.priority === card.meta.priority,
       );
@@ -928,6 +936,10 @@ export default function Playground() {
     .maxDuration(250)
     .runOnJS(true)
     .onStart(event => {
+      if (gameEnded) {
+        newGame();
+        return;
+      }
       for (let i = cards?.length - 1; i >= 0; i--) {
         const card = cards[i];
 
@@ -997,7 +1009,8 @@ export default function Playground() {
 
   // kjoijoij
 
-  const newGame = () => {
+  function newGame() {
+    setQuitConfirmation(false);
     setShowModal(false);
     setGameStarted(false);
     resetAllCards();
@@ -1006,18 +1019,33 @@ export default function Playground() {
       p1: [],
       p2: [],
     });
+
     setPrevCard(undefined);
     abandonedCardsRef.current = [];
-  };
+    setGameEnded(false);
+    playersOpenedCards.value = 0;
+  }
 
   const handleCancel = () => {
     setShowModal(false);
-    // setTimeout(() => {f
-    //   newGame();
-    // }, 2000);
+    setQuitConfirmation(false);
+    setQuitModal(false);
+  };
+  const handleResult = () => {
+    setShowModal(false);
+    setGameEnded(true);
+    playersOpenedCards.value = 0;
+  };
+
+  const confirmQuit = () => {
+    setQuitConfirmation(true);
+    setQuitModal(true);
   };
 
   const endingManually = (owner: string) => {
+    setQuitConfirmation(false);
+    setQuitModal(false);
+
     const scores = Array.from({ length: playersCount }, (_, i) => {
       const playerId = `p${i + 1}`;
       return (playerHands[playerId] ?? []).reduce(
@@ -1058,12 +1086,28 @@ export default function Playground() {
         // />
       )} */}
 
+      {quitConfirmation && (
+        <EndModal
+          visible={quitModal}
+          onClose={() => handleCancel()}
+          onProceed={() => endingManually(activePlayer.value)}
+          heading={'Quit Game'}
+          message={`Are you sure you want to end the game`}
+          button1="Cancel"
+          button2="Quit"
+        />
+      )}
+
       {winningPlayer && (
         <EndModal
           visible={showModal}
           player={winningPlayer}
-          onClose={() => handleCancel()}
+          onClose={() => handleResult()}
           onProceed={() => newGame()}
+          heading={'Game Ended'}
+          message={`${winningPlayer} has won the game`}
+          button1="Result"
+          button2="New Game"
         />
       )}
 
@@ -1254,7 +1298,7 @@ export default function Playground() {
               <Button
                 title={`End ${activePlayer.value}`}
                 color="#d62929ff"
-                onPress={() => endingManually(activePlayer.value)}
+                onPress={() => confirmQuit()}
                 disabled={previosCardReleased || cardReleased}
               />
             </View>
