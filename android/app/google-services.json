@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "965192341738",
+    "firebase_url": "https://rummygame-d8a27-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "rummygame-d8a27",
+    "storage_bucket": "rummygame-d8a27.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:965192341738:android:f421c43161ee13f4cb5f93",
+        "android_client_info": {
+          "package_name": "com.rummygame"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "965192341738-gj5tdlgbjiovihpnv538jg6nlmbrtbsj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rummygame",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "965192341738-oj3pam4j9v1vs1bio9g8s5t7lhk43gud.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACF6eeAt5uMBwHm67-tiFem9xB5GmMemM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "965192341738-oj3pam4j9v1vs1bio9g8s5t7lhk43gud.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

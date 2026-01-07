@@ -19,6 +19,7 @@ import {
   Alert,
   Button,
   StyleSheet,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -44,6 +45,21 @@ import { CardMeta, useDeck } from './cardTypes';
 import EndModal from './EndModal';
 import { Dropdown } from 'react-native-element-dropdown';
 import OpenHand from './OpenHand';
+
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+// import { UserContext } from '../context/UserContext';
+import { RootStackParamList } from '../navigators/types';
+import { handleLogin } from '../database/UserServices';
+import { useNavigation } from '@react-navigation/native';
+import GameStart from '../Backend/GameStart';
+import { createRoom, JoinRoom, Player } from '../Backend/Room';
+import { database, initDb } from '../context/Firebase';
+import { useUser } from '../context/UserContext';
+
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Playground'
+>;
 
 export type CardData = {
   meta: CardMeta;
@@ -78,6 +94,8 @@ type Positions = {
   y: number;
 };
 
+export function StartDeal() {}
+
 export default function Playground() {
   const [gameStarted, setGameStarted] = useState(false);
   const [gamePhase, setGamePhase] = useState<'idle' | 'dealing' | 'settled'>(
@@ -103,9 +121,11 @@ export default function Playground() {
   const [quitModal, setQuitModal] = useState(false);
   const [activeDeck, setactiveDeck] = useState(false);
   const [playersCount, setPlayersCount] = useState(2);
+  const [roomId, setRoomId] = useState(0);
   const [selectedCard, setSelectedCard] = useState<CardData>();
   const [quitConfirmation, setQuitConfirmation] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
+  const navigation = useNavigation<NavigationProp>();
 
   // const [removing, setRemoving] = useState(false);
   // const [removableCard, setRemovableCard] = usfseState<CardData>();ffddsdhfr
@@ -335,7 +355,7 @@ export default function Playground() {
         };
       })
       .filter(Boolean) as CardData[];
-  }, [cardDeck, cardSharedValues, user1Pos, user2Pos]);
+  }, [cardDeck, cardSharedValues]);
 
   const resolveRound = () => {
     const shownCards = cards.filter(c => c.state.value === 'show');
@@ -1072,20 +1092,20 @@ export default function Playground() {
     setPreviosCardReleased(false);
     setCardReleased(false);
   };
+  const usertemp = useUser();
+
+  const player1: Player = {
+    userId: '12',
+    connected: true,
+    dropped: false,
+  };
+
+  const db = database;
+
+  const db1 = initDb;
 
   return (
     <View style={{ width: width, height: height, backgroundColor: '#1e1e1e' }}>
-      {/* {activeDeck && (
-        // <OpenHandh
-        //   hand={playerHands[activePlayer.value]}
-        //   onClose={() => handleCancel()}
-        //   onProceed={() => newGame()}r
-        //   player={activePlayer.value}
-        //   visible={activeDeck}
-        //   selectedCard={() => setSelectedCard}r
-        // />
-      )} */}
-
       {quitConfirmation && (
         <EndModal
           visible={quitModal}
@@ -1128,7 +1148,7 @@ export default function Playground() {
               text={'No. of players : '}
               font={defaultFont}
             /> */}
-            <Dropdown
+            {/* <Dropdown
               style={[styles.dropdown]}
               placeholderStyle={styles.placeholderStyle}
               selectedTextStyle={styles.selectedTextStyle}
@@ -1143,10 +1163,42 @@ export default function Playground() {
               onChange={item => {
                 setPlayersCount(item.value);
               }}
+            /> */}
+            <TextInput
+              value={roomId?.toString()}
+              onChangeText={text => {
+                const numericValue = text.replace(/[^0-9]/g, '');
+                setRoomId(numericValue ? parseInt(numericValue, 10) : 0);
+              }}
+              keyboardType="numeric"
+              style={{ color: '#fff', backgroundColor: '#2f2f31ff' }}
             />
           </View>
 
-          <Button title="Start Dealing" onPress={dealing} />
+          <Button
+            title="Join Room"
+            onPress={async () => {
+              // db1();
+              if (usertemp.user?.uid) {
+                const cards = await JoinRoom(
+                  roomId,
+                  player1,
+                  usertemp?.user?.uid,
+                );
+              }
+              console.log(
+                '🚀 ~ usertemp -============================================:',
+                usertemp,
+              );
+
+              // dealing();
+              // console.log('🚀 ~ Playground ~ cards:', cards);
+            }}
+          />
+          <Button
+            title="Create Room"
+            onPress={async () => await createRoom()}
+          />
         </View>
       ) : (
         <GestureHandlerRootView

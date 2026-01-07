@@ -1,28 +1,69 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React from 'react';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+// Your Context
+// import { UserProvider, useUser } from './context/UserContext';
+
+// Your Screens
+import Signup from './src/Components/Signup';
+import Login from './src/Components/Login';
 import Playground from './src/Components/Playground';
+import { UserProvider, useUser } from './src/context/UserContext';
 
+const Stack = createNativeStackNavigator();
+
+// 1. Define the Auth Stack (Logged Out)
+const AuthStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: true }}>
+    <Stack.Screen name="Login" component={Login} />
+    <Stack.Screen name="SignUp" component={Signup} />
+  </Stack.Navigator>
+);
+
+// 2. Define the Game Stack (Logged In)
+const GameStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Playground" component={Playground} />
+    {/* Add GameStart or other game screens here */}
+  </Stack.Navigator>
+);
+
+// 3. The Logic Controller
+const RootNavigator = () => {
+  const { user, loading } = useUser();
+
+  // IMPORTANT: This prevents the 'null' flash while Firebase is waking up
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      {user ? <GameStack /> : <AuthStack />}
+    </NavigationContainer>
+  );
+};
+
+// 4. The Main App Entry Point
 function App() {
   return (
-    <SafeAreaProvider style={styles.container}>
-      <Playground />
-    </SafeAreaProvider>
+    <UserProvider>
+      <RootNavigator />
+    </UserProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  centered: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
