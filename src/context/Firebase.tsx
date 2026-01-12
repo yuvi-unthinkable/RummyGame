@@ -1,6 +1,9 @@
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set } from 'firebase/database';
-import { useEffect } from 'react';
+import { getApp, getApps, initializeApp } from '@react-native-firebase/app';
+import auth, { initializeAuth } from '@react-native-firebase/auth';
+import database, { getDatabase } from '@react-native-firebase/database';
+import firestore from '@react-native-firebase/firestore';
+
+
 
 // Your Firebase configuration (replace with your actual config)
 const firebaseConfig = {
@@ -14,26 +17,13 @@ const firebaseConfig = {
     'https://rummygame-d8a27-default-rtdb.asia-southeast1.firebasedatabase.app/', // Your database URL
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const database = getDatabase(app); // Get the Realtime Database instance
+const app = getApps().length === 0
+  ? initializeApp(firebaseConfig)
+  : getApp();
 
-const writeToFirebase = async () => {
+console.log('🔥 Firebase Web SDK initialized');
 
+export const db = getDatabase(app);
+// export const auth = getAuth(app);
 
-  try {
-    // Use the 'set' function with a database reference
-    await set(ref(database, 'users/user123'), {
-      name: 'user2',
-      age: 23,
-      msg: 'hello babies lets have some fun together okaye',
-    });
-    console.log('Success: Data saved to Firebase!');
-  } catch (error) {
-    console.log('🚀 ~ writeToFirebase ~ error:', error);
-  }
-};
-
-export function initDb() {
-  writeToFirebase();
-}
+export { auth, firestore, database };

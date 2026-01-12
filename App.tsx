@@ -1,7 +1,8 @@
 import React from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { database } from './src/context/Firebase';
 
 // Your Context
 // import { UserProvider, useUser } from './context/UserContext';
@@ -11,8 +12,13 @@ import Signup from './src/Components/Signup';
 import Login from './src/Components/Login';
 import Playground from './src/Components/Playground';
 import { UserProvider, useUser } from './src/context/UserContext';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { RootStackParamList } from './src/navigators/types';
 
 const Stack = createNativeStackNavigator();
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'App'>;
+
 
 // 1. Define the Auth Stack (Logged Out)
 const AuthStack = () => (
@@ -26,13 +32,13 @@ const AuthStack = () => (
 const GameStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Playground" component={Playground} />
-    {/* Add GameStart or other game screens here */}
   </Stack.Navigator>
 );
 
 // 3. The Logic Controller
 const RootNavigator = () => {
   const { user, loading } = useUser();
+  // console.log("🚀 ~ RootNavigator ~ user:", user)
 
   // IMPORTANT: This prevents the 'null' flash while Firebase is waking up
   if (loading) {
@@ -44,7 +50,7 @@ const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+      <NavigationContainer>
       {user ? <GameStack /> : <AuthStack />}
     </NavigationContainer>
   );
@@ -53,9 +59,11 @@ const RootNavigator = () => {
 // 4. The Main App Entry Point
 function App() {
   return (
-    <UserProvider>
-      <RootNavigator />
-    </UserProvider>
+     <GestureHandlerRootView style={{ flex: 1 }}>
+      <UserProvider>
+        <RootNavigator />
+      </UserProvider>
+    </GestureHandlerRootView>
   );
 }
 

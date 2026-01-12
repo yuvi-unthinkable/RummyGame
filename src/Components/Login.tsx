@@ -14,6 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigators/types';
 import { handleLogin } from '../database/UserServices';
 
+
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 export default function Login() {
@@ -22,16 +23,16 @@ export default function Login() {
   const navigation = useNavigation<NavigationProp>();
 
   const handleLogin1 = async () => {
-    if (!email || !password)
-      return Alert.alert('error', 'Please enter email and password');
+    if (!email || !password) {
+      Alert.alert('error', 'Please enter email and password');
+      return;
+    }
+
     const user = await handleLogin(email, password);
-    console.log('🚀 ~ handleLogin1 ~ user:', user);
-    if (!user) return Alert.alert('Error', 'Invalid Credentials');
-    else {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Playground' }],
-      });
+
+    if (!user) {
+      Alert.alert('Error', 'Invalid Credentials');
+      return;
     }
   };
 
@@ -68,7 +69,7 @@ export default function Login() {
 
         <TouchableOpacity
           style={styles.signupContainer}
-            onPress={() => navigation.navigate('SignUp')}
+          onPress={() => navigation.navigate('SignUp')}
         >
           <Text style={styles.signupText}>
             Don't have an account? <Text style={styles.signupLink}>Signup</Text>

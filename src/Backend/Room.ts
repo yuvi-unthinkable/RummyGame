@@ -1,138 +1,117 @@
-import { StyleSheet, Text, View } from 'react-native';
-import React, { useEffect } from 'react';
-import { useRSXformBuffer } from '@shopify/react-native-skia';
-import Playground, { CardData } from '../Components/Playground';
-import GameStart from './GameStart';
 import { database } from '../context/Firebase';
-import { child, get, ref, set, update } from 'firebase/database';
-import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
-import { signInAnonymously } from 'firebase/auth';
-import { useUser } from '../context/UserContext';
+import { getRoomSnap, UpdateRoomData } from '../services/db.service';
+import { NetworkCard } from './useGameStarted';
 
 export type RoomData = {
+  status: 'waiting' | 'playing' | 'ended';
   roomId: number;
   playerCount: number;
-  ownerId: number;
   createdAt: string;
-  players: Player[];
-  status: 'waiting' | 'playing' | 'ended';
+  players: Record<string, Player>; // p1, p2, p3...
+  cards?: Record<string, NetworkCard>;
+  deck?: { order: number[] };
+  hostUid: string;
+  activePlayer?: string;
 };
 
 export type Player = {
   userId: string;
-  position?: string;
   connected: boolean;
   dropped: boolean;
-  hand?: CardData[];
 };
 
 const currentTimeString = new Date().toLocaleTimeString();
 
-const room1: RoomData = {
+const room1 = {
   roomId: 123456,
   playerCount: 2,
-  ownerId: 1,
   createdAt: currentTimeString,
   status: 'waiting',
-  players: [],
+  // cards: [],
 };
 
-export async function createRoom() {
-  // const user = await getCurrentUser();
-  // console.log('🚀 ~ createRoom ~ user:', user);
+export async function createRoom(uid: string) {
+  const roomObj: RoomData = {
+    roomId: room1.roomId,
+    playerCount: room1.playerCount,
+    hostUid: uid,
+    createdAt: currentTimeString,
+    status: 'waiting',
+    players: {},
+  };
 
-  // const user = useUser();
+  await UpdateRoomData(roomObj.roomId, roomObj);
+}
+export const JoinRoom = async (roomId: number, uid: string) => {
+  console.log('Joining room:', roomId);
 
-  // if (user) console.log('user..................', user);
+  // const roomRef = ref(database, `room/${roomId}`);
 
-  writeToFirebase(
-    room1.roomId.toString(),
-    room1.playerCount,
-    room1.ownerId,
-    room1.createdAt,
-    room1.status,
-    room1.players,
+  // const room
+
+  // if (!snapshot.exists()) {
+  //   console.error('Room does not exist');
+  //   return { PlayerQty: 0, startGame: false };
+  // }
+
+  // const roomData = snapshot.val() as RoomData;
+  const roomData = await getRoomSnap(roomId);
+
+  if (roomData === null) {
+    console.error('Room does not exist');
+    return { PlayerQty: 0, startGame: false };
+  }
+
+  const players = roomData.players ?? {};
+
+  // 1️⃣ Check if user already joined
+  const existingEntry = Object.entries(players).find(
+    ([_, p]) => p.userId === uid,
   );
-}
 
-export const JoinRoom = async (roomId: number, player: Player, uid: string) => {
-  console.log('hi from join room please wait....');
-
-  const roomRef = ref(database);
-
-  player.userId = uid;
-
-  try {
-    const snapshot = await get(child(roomRef, `room/${roomId}`));
-
-    if (!snapshot.exists()) {
-      console.error('Room does not exist');
-      return;
-    }
-
-    const roomData = snapshot.val() as RoomData;
-
-    const currentPlayer = roomData.players || [];
-
-    const isAlreadyjoined = currentPlayer.some(p => p.userId === player.userId);
-
-    if (isAlreadyjoined) {
-      console.log('player is already in this room. ');
-      return;
-    }
-
-    const updatedPlayer = [...currentPlayer, player];
-    const isNowFull = updatedPlayer.length === roomData.playerCount;
-
-    const updates: any = {
-      [`room/${roomId}/players`]: updatedPlayer,
+  if (existingEntry) {
+    // User already has a seat
+    return {
+      PlayerQty: Object.keys(players).length,
+      startGame: roomData.status === 'playing',
+      myPosition: existingEntry[0],
     };
-
-    if (isNowFull) {
-      updates[`room/${roomId}/status`] = 'playing';
-    }
-
-    await update(ref(database), updates);
-    console.log('player joined sucessfully');
-
-    if (isNowFull) {
-      console.log('room is ful. Starting game...');
-      GameStart(updatedPlayer, roomData.playerCount);
-    }
-  } catch (error) {
-    console.log('🚀 ~ JoinRoom ~ error:', error);
   }
-};
 
-const db = database;
-
-const writeToFirebase = async (
-  roomid: string,
-  playerCount: number,
-  ownerId: number,
-  createdAt: string,
-  status: 'waiting' | 'playing' | 'ended',
-  players: Player[],
-) => {
-  console.log('hiiiii from new room');
-  try {
-    // Use the 'set' function with a database reference
-    await set(ref(database, `room/${roomid}`), {
-      roomId: roomid,
-      playerCount: playerCount,
-      ownerId: ownerId,
-      createdAt: createdAt,
-      status: status,
-      players: players,
-    });
-    console.log('Success: Data saved to Firebase!');
-  } catch (error) {
-    console.log('🚀 ~ writeToFirebase ~ error:', error);
+  // 2️⃣ Prevent overfilling
+  if (Object.keys(players).length >= roomData.playerCount) {
+    throw new Error('Room is full');
   }
+
+  // 3️⃣ Assign next available position deterministically
+  const nextIndex = Object.keys(players).length + 1;
+  const position = `p${nextIndex}`;
+
+  const updatedPlayers = {
+    ...players,
+    [position]: {
+      userId: uid,
+      connected: true,
+      dropped: false,
+    },
+  };
+
+  // 4️⃣ Determine new room status
+  const isNowFull = Object.keys(updatedPlayers).length === roomData.playerCount;
+  const newStatus = isNowFull ? 'playing' : roomData.status;
+
+  // 5️⃣ Atomic update
+
+  const roomRef = database().ref(`room/${roomId}`);
+
+  await roomRef.update({
+    players: updatedPlayers,
+    status: newStatus,
+  });
+
+  return {
+    PlayerQty: Object.keys(updatedPlayers).length,
+    startGame: newStatus === 'playing',
+    myPosition: position,
+  };
 };
-
-export default function Room() {
-  const currentTimeString = new Date().toLocaleTimeString();
-}
-
-const styles = StyleSheet.create({});

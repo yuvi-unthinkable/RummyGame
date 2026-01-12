@@ -77,7 +77,7 @@ export default function GameStart(players: Player[], playerCount: number) {
   //     deckCards : cardDeck,
   //     abondendCards : []
   //   }
+  console.log("----------------fawbvwanv-===========vnvnvow-===================");
   console.log('cards data', cards);
-
-
+  return cards;
 }

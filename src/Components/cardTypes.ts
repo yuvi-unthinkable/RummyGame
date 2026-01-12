@@ -44,6 +44,15 @@ export type CardMeta = {
   priority: number;
 };
 
+export type CardState =
+  | 'deck'
+  | 'player'
+  | 'hand'
+  | 'show'
+  | 'prevcard'
+  | 'collected';
+
+
 export const CARD_DECK_META: CardMeta[] = SUITS.flatMap((suit) => 
   RANKS.map((rank, index) => ({
     id: SUITS.indexOf(suit) * 13 + index,
