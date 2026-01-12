@@ -1,19 +1,20 @@
-import {
-  Group,
-  Image,
-  SkImage,
-} from '@shopify/react-native-skia';
 import React from 'react';
+import { Group, Image, SkImage } from '@shopify/react-native-skia';
 import {
   SharedValue,
   useDerivedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { CardState } from './cardTypes';
 
 type CardProps = {
   x: SharedValue<number>;
   y: SharedValue<number>;
-  faceUp: SharedValue<boolean>;
+  // 🟢 NEW: Pass logic variables instead of a raw boolean
+  owner: SharedValue<string>;
+  state: SharedValue<CardState>;
+  myId: string | null;
+  
   backCardImg: SkImage | null;
   faceCardImg: SkImage | null;
   cardWidth: number;
@@ -23,7 +24,9 @@ type CardProps = {
 const Card = ({
   x,
   y,
-  faceUp,
+  owner,
+  state,
+  myId,
   backCardImg,
   faceCardImg,
   cardWidth,
@@ -32,44 +35,62 @@ const Card = ({
   const halfWidth = cardWidth / 2;
   const halfHeight = cardHeight / 2;
 
-  // 1. CLEANER ANIMATION: Directly derive the animateion state
-  const rotationAngle = useDerivedValue(() => {
-    return withTiming(faceUp.value ? Math.PI: 0, { duration: 500 });
-  }, [faceUp]);
+  // 1. 🔒 VISIBILITY LOGIC (The "Fog of War")
+  // This runs instantly on the UI thread.
+  const isFaceUpLogic = useDerivedValue(() => {
+    const s = state.value;
+    const o = owner.value;
 
+    // A. Deck is ALWAYS hidden (Back side)
+    if (s === 'deck') return false; 
+    
+    // B. Hand is visible ONLY if I own it
+    if (s === 'hand') {
+        return o === myId; 
+    }
+    
+    // C. Table/Show/PrevCard/Collected is visible to everyone
+    return true; 
+  });
+
+  // 2. 🔄 ANIMATION DRIVER
+  // Drives the flip based on the calculated logic above
+  const rotationAngle = useDerivedValue(() => {
+    return withTiming(isFaceUpLogic.value ? Math.PI : 0, { duration: 500 });
+  });
+
+  // 3. 📐 TRANSFORMATION MATRIX
   const transform = useDerivedValue(() => {
     const angle = rotationAngle.value;
 
     return [
-      {perspective : 800},
-      // Move origin to the center of the card
+      { perspective: 800 },
       { translateX: x.value + halfWidth },
       { translateY: y.value + halfHeight },
-      // Perform the rotation
       { rotateY: angle },
-                { scaleX: faceUp.value ? -1 : 1 }, // 🔑 FIX MIRROR
-
-      // Move origin back to top-left so the drawing logic ris standardr
+      // 🔑 FIX MIRROR: If face up, flip scaleX so text isn't backwards
+      { scaleX: isFaceUpLogic.value ? -1 : 1 }, 
       { translateX: -halfWidth },
       { translateY: -halfHeight },
-
     ];
   });
 
+  // 4. 🖼 IMAGE SWAPPER
   const currentImage = useDerivedValue(() => {
     const angle = rotationAngle.value;
-    // Swap image when we cross the 90 degree (PI/2) markke
-    const isShowingFace = angle > Math.PI /2 && angle < (4 * Math.PI) / 2;
+    // Swap image when we cross the 90 degree mark
+    const isShowingFace = angle > Math.PI / 2; 
+    
     if (!backCardImg || !faceCardImg) return null;
 
     return isShowingFace ? faceCardImg : backCardImg;
-  }, [faceCardImg, backCardImg]);
+  });
 
   return (
     <Group transform={transform}>
       {currentImage.value && (
         <Image
-          image={currentImage}
+          image={currentImage} // Skia handles DerivedValues automatically here
           x={0}
           y={0}
           width={cardWidth}

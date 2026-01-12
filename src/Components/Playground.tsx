@@ -31,7 +31,6 @@ import {
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import { auth, database } from '../context/Firebase';
-import Card from './Card';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardMeta, CardState, useDeck } from './cardTypes';
 import EndModal from './EndModal';
@@ -46,6 +45,7 @@ import { useUser } from '../context/UserContext';
 import { useGameStarted } from '../Backend/useGameStarted';
 import { onValue, update } from '@react-native-firebase/database';
 import { getRoomSnap, UpdateCardData } from '../services/db.service';
+import Card from './Card';
 
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -115,16 +115,17 @@ export default function Playground() {
   const [activeDeck, setactiveDeck] = useState(false);
   const [playersCount, setPlayersCount] = useState(2);
   const [roomId, setRoomId] = useState(123456);
-  const [selectedCard, setSelectedCard] = useState<CardData>();
   const [quitConfirmation, setQuitConfirmation] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
   const [gameRoomData, setGameRoomData] = useState();
   const [deckFlattened, setdeckFlattened] = useState(false);
-  const [currentPlayer, setCurrentPlayer] = useState('');
+  const [myId, setMyId] = useState('');
+  const [prevCardReleased, setprevCardReleased] = useState<CardData>();
 
   const navigation = useNavigation<NavigationProp>();
 
   // const [removing, setRemoving] = useState(false);
+  const [cardSent, setCardSent] = useState(false);
   // const [removableCard, setRemovableCard] = usfseState<CardData>();ffddsdhfr
 
   // dimension hooks
@@ -306,41 +307,10 @@ export default function Playground() {
       .sort((a, b) => (a.indexInHand.value ?? 0) - (b.indexInHand.value ?? 0));
   };
 
-  const getHand = (player: playerId) =>
-    cards.filter(c => c.owner.value === player && c.state.value === 'hand');
-
-  const movingCardsToPosition = (
-    cardID: string,
-    cardOwner: string,
-    cardState: string,
-  ) => {
-    switch (cardState) {
-      case 'player':
-        break;
-      case 'deck':
-        break;
-      case 'prevcard':
-        break;
-      case 'collected':
-        break;
-
-      default:
-        break;
-    }
-  };
-
   const endBtnPos = {
     x: width / 2 - 30,
     y: (height * 4) / 5,
   };
-
-  function computeShowTarget(owner: string) {
-    const offsetX = owner === 'p1' ? -20 : 20;
-    return {
-      x: width / 2 - cardWidth / 2 + offsetX,
-      y: height / 2 - cardHeight / 2 + (owner === 'p1' ? 20 : -20),
-    };
-  }
 
   let cards: CardData[] = useGameStarted(roomId, gameStarted);
   console.log('🚀 ~ Playground ~ cards:', cards);
@@ -423,7 +393,7 @@ export default function Playground() {
           cards[cardId] = {
             owner,
             state: 'hand',
-            faceup: true,
+            // faceup: true,
             indexInHand,
           };
         });
@@ -446,21 +416,29 @@ export default function Playground() {
     console.log('dealing is complete ');
   }
 
+  const myPlayerId = useMemo<playerId | null>(() => {
+    if (!room?.players || !user?.uid) return null;
+
+    return (
+      Object.entries(room.players).find(
+        ([_, p]) => p.userId === user.uid,
+      )?.[0] ?? null
+    );
+  }, [room, user]);
+
   const ReleaseOneMoreCard = async () => {
     if (!room?.deck?.order || !room?.cards || !room.activePlayer) {
       console.log('room not ready');
+      return;
+    }
+    if (cardSent) {
+      console.log('one card is already sent to the player from the deck');
       return;
     }
 
     // 1️⃣ Resolve my playerId (p1, p2, ...)
     console.log('🚀 ~ ReleaseOneMoreCard ~ room.players:', room.players);
     if (!room.players || !user?.uid) return;
-
-    const myPlayerId = room?.players
-      ? (Object.keys(room.players).find(
-          key => room.players[key]?.userId === user?.uid,
-        ) as playerId)
-      : undefined;
 
     console.log('🚀 ~ ReleaseOneMoreCard ~ user.uid:', user);
     console.log('🚀 ~ ReleaseOneMoreCard ~ myPlayerId:', myPlayerId);
@@ -469,12 +447,6 @@ export default function Playground() {
       console.log('player not registered in room');
       return;
     }
-
-    // 2️⃣ Enforce turn authority
-    // if (room.activePlayer !== myPlayerId) {
-    //   console.log('not your turn');
-    //   return;
-    // }
 
     // 3️⃣ Find next undealt card
     const usedCardIds = new Set(Object.keys(room.cards).map(id => Number(id)));
@@ -513,12 +485,18 @@ export default function Playground() {
     //   .update({
     //     activePlayer: `p${nextIndex}`,
     //   });
+    setCardSent(true);
   };
 
   const ReleasePrevCard = async () => {
     // 1️⃣ Validate room state
+
     if (!room?.cards || !room.activePlayer || !prevCard) {
       console.log('room or prevCard not ready');
+      return;
+    }
+    if (cardSent) {
+      console.log('one card is already sent to the player from the deck');
       return;
     }
 
@@ -534,6 +512,9 @@ export default function Playground() {
       return;
     }
 
+    setprevCardReleased(prevCard);
+    console.log("🚀 ~ ReleasePrevCard ~ prevCard:", prevCard)
+
     // 4️⃣ Determine correct index in hand (DB-authoritative)
     const handSize = Object.values(room.cards).filter(
       (c: any) => c.owner === currentPlayer && c.state === 'hand',
@@ -542,7 +523,7 @@ export default function Playground() {
     // 5️⃣ Update card ownership in Firebase
     await database().ref(`room/${roomId}/cards/${cardId}`).update({
       owner: currentPlayer,
-      state: 'hand',
+      state: 'prevcard',
       faceup: true,
       indexInHand: handSize,
     });
@@ -560,10 +541,32 @@ export default function Playground() {
 
     // 7️⃣ Clear local selection
     setPrevCard(undefined);
+    setCardSent(true);
   };
 
   async function removeHighestCards(card: CardData, player: playerId) {
+    console.log('im startinf removing card');
     if (!room?.cards || room.activePlayer !== player) return;
+
+    console.log('i am here removeHighestCards');
+
+    // console.log("🚀 ~ removeHighestCards ~ prevCardReleased:", prevCardReleased)
+    console.log(
+      '🚀 ~ removeHighestCards ~ prevCardReleased?.meta.id:',
+      prevCardReleased?.meta.id,
+    );
+    console.log('🚀 ~ removeHighestCards ~ card.meta.id:', card.meta.id);
+    if (prevCardReleased?.meta.id === card.meta.id) {
+      console.log('i am here ');
+      console.log('this card cannot be sent try with another card');
+      return;
+    }
+    console.log('i am here removeHighestCards later');
+
+    let oldPrevCard = {};
+    if (prevCard) {
+      oldPrevCard = prevCard;
+    }
 
     // 1. Get all cards in this player's hand from the DB state
     const handCards = Object.entries(room.cards)
@@ -585,6 +588,7 @@ export default function Playground() {
     // Choose the 'prevcard' (the one left on the table)
     const prev = samePriority[samePriority.length - 1];
     const toCollect = samePriority.slice(0, -1);
+    toCollect.push(oldPrevCard);
 
     // Update the prevcard
     updates[`cards/${prev.id}`] = {
@@ -628,6 +632,8 @@ export default function Playground() {
     } catch (error) {
       console.error('Failed to update cards:', error);
     }
+    setCardSent(false);
+    setprevCardReleased(undefined);
   }
 
   const cardHitTest = (x: number, y: number, card: CardData) => {
@@ -651,7 +657,7 @@ export default function Playground() {
     card.faceup.value = true;
 
     const hand = getHandForPlayer(card.owner.value);
-    const index = hand.length-1;
+    const index = hand.length - 1;
     const target = computeHandTarget(index, card.owner.value);
 
     if (!target) return;
@@ -720,53 +726,29 @@ export default function Playground() {
       });
     }
   }, [room?.cards, gameStarted, playersCount]);
-  // useEffect(() => {
-  //   if (!gameStarted) return;
 
-  //   for (let i = 0; i < playersCount; i++) {
-  //     const player = `p${i + 1}` as playerId;
-  //     const hand = playerHands[player] ?? [];
+  useEffect(() => {
+    if (!gameStarted || !room?.cards || !room?.players) return;
 
-  //     hand.forEach((card, index) => {
-  //       const newTarget = computeHandTarget(index, player);
-  //       if (newTarget) {
-  //         card.handTarget.value = newTarget;
+    const players = Object.keys(room.players);
 
-  //         if (card.state.value === 'hand' || card.state.value === 'prevcard') {
-  //           card.x.value = withTiming(newTarget.x, { duration: 500 });
-  //           card.y.value = withTiming(newTarget.y, { duration: 500 });
-  //         }
-  //       }
-  //     });
-  //   }
-  //   // console.log('🚀 ~ dealing ~ userPositions:', userPositions);j
-  // }, [playerHands, gameStarted]);
-  // Inside Playground componenthjjaffesertdrfh
+    for (const player of players) {
+      const handCount = Object.values(room.cards).filter(
+        (c: any) => c.owner === player && c.state === 'hand',
+      ).length;
 
-  //   useEffect(() => {
-  //   if (!gameStarted || !room?.cards) return;
+      if (handCount === 0) {
+        console.log(
+          `[GameWin] Player ${player} has no cards left and wins the game.`,
+        );
 
-  //   for (let i = 0; i < playersCount; i++) {
-  //     const player = `p${i + 1}` as playerId;
-  //     const hand = getHandForPlayer(player);
+        setWinningPlayer(player);
 
-  //     hand.forEach((card, index) => {
-  //       const target = computeHandTarget(index, player);
-  //       if (!target) return;
-
-  //       card.handTarget.value = target;
-
-  //       if (card.state.value === 'hand' ) {
-  //         card.x.value = withTiming(target.x, { duration: 400 });
-  //         card.y.value = withTiming(target.y, { duration: 400 });
-  //       }
-  //       if (card.state.value === 'prevcard') {
-  //         card.x.value = withTiming(prevCardX, { duration: 400 });
-  //         card.y.value = withTiming(prevCardY, { duration: 400 });
-  //       }
-  //     });
-  //   }
-  // }, [room?.cards, gameStarted, playersCount]);
+        endingManually();
+        break;
+      }
+    }
+  }, [gameStarted, room?.cards, room?.players]);
 
   useEffect(() => {
     if (!gameStarted || !room?.cards) return;
@@ -805,97 +787,54 @@ export default function Playground() {
     });
   }, [room?.cards, gameStarted]);
 
-  // useEffect(() => {
-  //   if (!roomId) return;
-
-  //   const roomRef = database().ref(`room/${roomId}`);
-
-  //   const unsubscribe = onValue(roomRef, snapshot => {
-  //     const roomData = snapshot.val();
-  //     if (!roomData) return;
-
-  //     const players = roomData.players ? Object.keys(roomData.players) : [];
-  //     const playerCount = players.length;
-
-  //     // ---------------------------------------------------------
-  //     // 1. INITIAL DEALING LOGIC (HOST ONLY)
-  //     // ---------------------------------------------------------
-  //     if (
-  //       roomData.status === 'playing' &&
-  //       roomData.hostUid === user?.uid && // Am I the host?
-  //       !roomData.cards && // Have cards been dealt yet?
-  //       !hasDealtRef.current && // Prevent race conditions
-  //       playerCount === roomData.playerCount
-  //     ) {
-  //       console.log('Host: Initializing Deck and Dealing...');
-  //       hasDealtRef.current = true;
-  //       dealCardsHostOnly(roomId, roomData, roomRef);
-  //     }
-
-  //     // ---------------------------------------------------------
-  //     // 2. ANIMATION & STATE SYNC (EVERYONE)
-  //     // ---------------------------------------------------------
-  //     if (roomData.cards && roomData.deck) {
-  //       // Step A: Update local React state to show the game board
-  //       if (!gameStarted) setGameStarted(true);
-
-  //       // Step B: Trigger animations based on synced Firebase data
-  //       // We iterate through our local 'cards' objects and move them
-  //       // to positions dictated by 'roomData.cards'
-  //       Object.keys(roomData.cards).forEach(cardId => {
-  //         const remoteCard = roomData.cards[cardId];
-  //         const localCard = cards.find(c => c.meta.id === parseInt(cardId));
-
-  //         if (localCard) {
-  //           // Sync metadata SharedValues
-  //           localCard.owner.value = remoteCard.owner;
-  //           localCard.state.value = remoteCard.state;
-  //           localCard.indexInHand.value = remoteCard.indexInHand;
-  //           localCard.faceup.value = remoteCard.faceup;
-
-  //           // Trigger Movement Animation
-  //           if (remoteCard.state === 'hand') {
-  //             const target = computeHandTarget(
-  //               remoteCard.indexInHand,
-  //               remoteCard.owner,
-  //             );
-
-  //             if (!target) return;
-
-  //             // withTiming handles the smooth transition from deck to hand
-  //             localCard.x.value = withTiming(target.x, { duration: 800 });
-  //             localCard.y.value = withTiming(target.y, { duration: 800 });
-  //           } else if (remoteCard.state === 'deck') {
-  //             localCard.x.value = withTiming(deckX, { duration: 500 });
-  //             localCard.y.value = withTiming(deckY, { duration: 500 });
-  //           }
-  //         }
-  //       });
-
-  //       // Sync global game states
-  //       setGameRoomData(roomData);
-  //       setroom(roomData);
-  //       setActivePlayerJs(roomData.activePlayer || 'p1');
-  //       activePlayer.value = roomData.activePlayer || 'p1';
-  //     }
-  //   });
-
-  //   return () => unsubscribe();
-  // }, [roomId, user, cards]); // Added cards to deps to ensure animation target finds local objects
-
-  const myPlayerId = useMemo(() => {
-    if (!room?.players || !user?.uid) return null;
-
-    return Object.entries(room.players).find(
-      ([_, uid]) => uid === user.uid,
+  const getMyPlayerId = () => {
+    if (!room) return;
+    const id = Object.entries(room.players).find(
+      ([_, player]) => player.userId === user.uid,
     )?.[0] as playerId | null;
-  }, [room, user]);
+    if (id) setMyId(id);
+    return id;
+  };
 
-  const canDrawFromDeck = () => {
-    if (!room?.activePlayer) return false;
-    if (!myPlayerId) return false;
+  const canDrawFromDeck = async () => {
+    // Pull values from REFS, not state
+    const currentRoom = await getRoomSnap(roomId);
+    const currentMeId = user.uid;
+    console.log('🚀 ~ canDrawFromDeck ~ currentMeId:', currentMeId);
 
-    return room.activePlayer === myPlayerId;
+    console.log(
+      '🚀 ~ canDrawFromDeck ~ currentRoom?.activePlayer:',
+      currentRoom?.activePlayer,
+    );
+    if (!currentRoom?.activePlayer) {
+      console.log('currentRoom is missing data', {
+        active: currentRoom?.activePlayer,
+        me: currentMeId,
+      });
+      return false;
+    }
+
+    console.log(
+      '🚀 ~ canDrawFromDeck ~ currentRoom.players:',
+      currentRoom.players,
+    );
+
+    const currentMe = Object.entries(currentRoom.players).find(
+      ([_, player]) => player.userId === currentMeId,
+    )?.[0] as playerId | null;
+
+    if (!currentMe) {
+      console.log('current me is not present');
+      return false;
+    }
+
+    // Use trim and lowerCase to prevent "p1" vs "p1 " mismatches
+    const active = currentRoom.activePlayer.toString().trim().toLowerCase();
+    console.log('🚀 ~ canDrawFromDeck ~ active:', active);
+    const me = currentMe.toString().trim().toLowerCase();
+    console.log('🚀 ~ canDrawFromDeck ~ me:', me);
+
+    return active === me;
   };
 
   const tapGesture = Gesture.Tap()
@@ -923,37 +862,86 @@ export default function Playground() {
         // 🔹 2. Deck draw
         if (card.state.value === 'deck') {
           console.log('deck card clicked');
+          if (card.state.value === 'deck') {
+            ReleaseOneMoreCard();
+            return;
+          }
 
-          console.log('🚀 ~ Playground ~ canDrawFromDeck:', canDrawFromDeck());
+          // console.log('🚀 ~ Playground ~ canDrawFromDeck:', canDrawFromDeck());
           // if (!canDrawFromDeck()) return;
 
-          ReleaseOneMoreCard();
+          // ReleaseOneMoreCard();
           return;
         }
 
         // 🔹 3. Hand card interaction
+        // if (card.state.value === 'hand') {
+        //   console.log('hand card clicked');
+
+        //   if (!room?.activePlayer) return;
+
+        //   const allowed = await canDrawFromDeck();
+        //   if (!allowed) {
+        //     Alert.alert('Not your turn');
+        //     return;
+        //   }
+
+        //   // LOCK: Check if the card belongs to the local user
+        //   // if (card.owner.value !== myPlayerId) {
+        //   //   Alert.alert('Invalid Move', 'This is not your card!');
+        //   //   return;
+        //   // }
+
+        //   // LOCK: Check if it's the local user's turn
+        //   // if (room.activePlayer !== myPlayerId) {
+        //   //   Alert.alert(
+        //   //     'Wait your turn',
+        //   //     `It is currently ${room.activePlayer}'s turn.`,
+        //   //   );
+        //   //   return;
+        //   // }
+
+        //   // If both pass, proceed to game logic
+        //   removeHighestCards(card, room.activePlayer);
+        //   return;
+        // }
         if (card.state.value === 'hand') {
           console.log('hand card clicked');
 
-          if (!room?.activePlayer) return;
+          const allowed = await canDrawFromDeck();
+          if (!allowed) {
+            console.log('can draw allowed');
+            Alert.alert('Not your turn');
+            return;
+          }
+          const myPlayerId = getMyPlayerId();
+          console.log('🚀 ~ Playground ~ myPlayerId:', myPlayerId);
 
-          // LOCK: Check if the card belongs to the local user
-          // if (card.owner.value !== myPlayerId) {
-          //   Alert.alert('Invalid Move', 'This is not your card!');
-          //   return;
-          // }
+          if (!room?.activePlayer || !myPlayerId) {
+            console.log('active player or id not present', myPlayerId);
+            console.log('active player or id not present', room?.activePlayer);
+            return;
+          }
 
-          // LOCK: Check if it's the local user's turn
-          // if (room.activePlayer !== myPlayerId) {
-          //   Alert.alert(
-          //     'Wait your turn',
-          //     `It is currently ${room.activePlayer}'s turn.`,
-          //   );
-          //   return;
-          // }
+          // 🔒 Turn lock (authoritative DB check)
+          if (room.activePlayer !== myPlayerId) {
+            console.log('player is not active');
+            Alert.alert('Not your turn');
+            return;
+          }
 
-          // If both pass, proceed to game logic
-          removeHighestCards(card, room.activePlayer);
+          // 🔒 Ownership lock
+          if (card.owner.value !== myPlayerId) {
+            console.log('player is not other device');
+
+            Alert.alert('This is not your card');
+            return;
+          }
+
+          // ✅ Allowed move
+          console.log('all checks passed will remove now');
+
+          await removeHighestCards(card, myPlayerId);
           return;
         }
 
@@ -991,6 +979,7 @@ export default function Playground() {
     setGameStarted(false);
     setdeckFlattened(false);
     setPrevCard(undefined);
+    setShowModal(false);
     playersOpenedCards.value = 0;
   }
 
@@ -1020,33 +1009,33 @@ export default function Playground() {
 
     const players = Object.keys(room.players);
 
-    const scores = players.map(playerId => {
-      const score = Object.entries(cardsMap)
-        .filter(([_, c]: any) => c.owner === playerId && c.state === 'hand')
-        .reduce((sum, [id]) => {
-          const localCard = cards.find(c => c.meta.id === Number(id));
-          return sum + (localCard?.meta.priority ?? 0);
-        }, 0);
+    // const scores = players.map(playerId => {
+    //   const score = Object.entries(cardsMap)
+    //     .filter(([_, c]: any) => c.owner === playerId && c.state === 'hand')
+    //     .reduce((sum, [id]) => {
+    //       const localCard = cards.find(c => c.meta.id === Number(id));
+    //       return sum + (localCard?.meta.priority ?? 0);
+    //     }, 0);
 
-      return { playerId, score };
-    });
+    //   return { playerId, score };
+    // });
 
-    const minScore = Math.min(...scores.map(s => s.score));
+    // const minScore = Math.min(...scores.map(s => s.score));
 
-    const winners = scores
-      .filter(s => s.score === minScore)
-      .map(s => s.playerId);
+    // const winners = scores
+    //   .filter(s => s.score === minScore)
+    //   .map(s => s.playerId);
 
-    await update(roomRef, {
-      status: 'ended',
-      result: {
-        winners,
-        scores,
-        endedAt: Date.now(),
-      },
-    });
+    // await update(roomRef, {
+    //   status: 'ended',
+    //   result: {
+    //     winners,
+    //     scores,
+    //     endedAt: Date.now(),
+    //   },
+    // });
 
-    setWinningPlayer(winners.join(' & '));
+    // setWinningPlayer(winners.join(' & '));
     playersOpenedCards.value = 0;
     setShowModal(true);
     setPreviosCardReleased(false);
@@ -1303,9 +1292,11 @@ export default function Playground() {
                 {sortedCards.map(card => (
                   <Card
                     key={card.meta.id}
-                    x={card.x} // These should be SharedValues
-                    y={card.y} // These should be SharedValues
-                    faceUp={card.faceup}
+                    x={card.x}
+                    y={card.y}
+                    owner={card.owner} // Pass the SharedValue
+                    state={card.state} // Pass the SharedValue
+                    myId={myId} // Pass the string ID
                     backCardImg={backCardImg}
                     faceCardImg={card.cardFaceImg}
                     cardWidth={cardWidth}
@@ -1319,7 +1310,7 @@ export default function Playground() {
           {/* 5. UI Overlay (Buttons) */}
           {/* Note: Ensure playersOpenedCards.value is synced to state if you want this to appear/disappear reactively, 
               otherwise wrap this View in a Reanimated Component */}
-          {playersOpenedCards.value === playersCount && (
+          {gameStarted && (
             <View
               style={{
                 position: 'absolute',
