@@ -320,17 +320,37 @@ export default function Playground() {
   //   }
   // }
 
+  function getNextHandIndex(handCards: NetworkCard[]): number {
+    if (handCards.length === 0) return 0;
+
+    return Math.max(...handCards.map(c => c.indexInHand ?? -1)) + 1;
+  }
+
+  // function computeHandTarget(index: number, owner: string) {
+  //   if (!owner || owner === 'unset') return null;
+
+  //   const playerIndex = Number(owner.slice(1)) - 1;
+  //   const anchor = handStartX[playerIndex];
+
+  //   if (!anchor) return null;
+
+  //   return {
+  //     x: (cardWidth * 4) / 2 + (cardWidth + spreadGap) * index,
+  //     y: anchor.y + 20,
+  //   };
+  // }
+
+  const HAND_START_X = (cardWidth * 4) / 2;
+
   function computeHandTarget(index: number, owner: string) {
     if (!owner || owner === 'unset') return null;
 
     const playerIndex = Number(owner.slice(1)) - 1;
     const anchor = handStartX[playerIndex];
-
     if (!anchor) return null;
 
     return {
-      x: 
-      (cardWidth * 4) / 2 + (cardWidth + spreadGap) * index,
+      x: HAND_START_X + index * (cardWidth + spreadGap),
       y: anchor.y + 20,
     };
   }
@@ -442,6 +462,27 @@ export default function Playground() {
     return result;
   }
 
+  const orderedHands = useMemo(() => {
+    const map: Record<string, LogicalCard[]> = {};
+
+    logicalCards.forEach(c => {
+      if (c.state !== 'hand') return;
+
+      if (!map[c.owner]) map[c.owner] = [];
+      map[c.owner].push(c);
+    });
+
+    Object.values(map).forEach(hand => {
+      hand.sort((a, b) => {
+        const ai = a.indexInHand ?? 0;
+        const bi = b.indexInHand ?? 0;
+        return ai - bi;
+      });
+    });
+
+    return map;
+  }, [logicalCards]);
+
   async function dealCardsHostOnly(
     roomId: number,
     room: RoomData,
@@ -542,15 +583,15 @@ export default function Playground() {
       return;
     }
 
-    const handSize = handCards.length;
+    const nextIndex = getNextHandIndex(handCards);
 
     const updates: Record<string, any> = {
       [`players/${myPlayerId}/handCards/${targetCardId}`]: {
         id: targetCardId,
         owner: myPlayerId,
         state: 'hand',
-        indexInHand: handSize,
-        priority: room.deck.order ? undefined : undefined,
+        indexInHand: nextIndex,
+        priority: cardDeck[targetCardId].priority,
       },
       deck: {
         order: room.deck.order.slice(1),
@@ -586,14 +627,15 @@ export default function Playground() {
     }
 
     const handCards = getHandForPlayer(room, myPlayerId);
-    const handSize = handCards.length;
+    const nextIndex = getNextHandIndex(handCards);
 
     const updates: Record<string, any> = {
       [`players/${myPlayerId}/handCards/${prev.id}`]: {
         ...prev,
         owner: myPlayerId,
         state: 'hand',
-        indexInHand: handSize,
+        indexInHand: nextIndex,
+        priority: prev.priority,
       },
       PreviousCard: null,
       [`turnLocks/${myPlayerId}`]: {
@@ -644,17 +686,22 @@ export default function Playground() {
 
     console.log('passed blockers');
 
-    const samePriority = handCards
-      .filter(c => c.priority === handMap[logical.id]?.priority)
-      .sort((a, b) => (a.indexInHand ?? 0) - (b.indexInHand ?? 0));
+    const clickedPriority = handMap[logical.id]?.priority;
+    if (clickedPriority == null) return console.log('clickedPriority == null');
 
-    if (samePriority.length === 0) return;
+    const samePriority = handCards.filter(c => c.priority === clickedPriority);
+    console.log('🚀 ~ removeHighestCards ~ samePriority:', samePriority);
+
+    if (samePriority.length === 0)
+      return console.log('samePriority.length === 0');
 
     console.log('🚀 ~ removeHighestCards ~ samePriority:', samePriority);
 
-    const allSamePriority = handCards.every(
-      c => c.priority === handMap[logical.id]?.priority,
-    );
+    const newPrev = handMap[logical.id];
+
+    const toCollect = samePriority.filter(c => c.id !== logical.id);
+
+    const allSamePriority = samePriority.length === handCards.length;
 
     if (
       lock &&
@@ -668,6 +715,15 @@ export default function Playground() {
 
     const updates: Record<string, any> = {};
 
+    // if (room.PreviousCard) {
+    //   updates[`abandonedCards/${room.PreviousCard.id}`] = {
+    //     ...room.PreviousCard,
+    //     state: 'collected',
+    //     owner: 'unset',
+    //     indexInHand: null,
+    //   };
+    // }
+
     if (room.PreviousCard) {
       updates[`abandonedCards/${room.PreviousCard.id}`] = {
         ...room.PreviousCard,
@@ -677,13 +733,10 @@ export default function Playground() {
       };
     }
 
-    const newPrev = samePriority[samePriority.length - 1];
-    const toCollect = samePriority.slice(0, -1);
+    // Remove clicked card from hand
+    updates[`players/${player}/handCards/${newPrev.id}`] = null;
 
-    samePriority.forEach(c => {
-      updates[`players/${player}/handCards/${c.id}`] = null;
-    });
-
+    // Set new PreviousCard
     updates.PreviousCard = {
       ...newPrev,
       state: 'prevcard',
@@ -691,7 +744,9 @@ export default function Playground() {
       indexInHand: null,
     };
 
+    // Collect remaining same-priority cards
     toCollect.forEach(c => {
+      updates[`players/${player}/handCards/${c.id}`] = null;
       updates[`abandonedCards/${c.id}`] = {
         ...handMap[c.id],
         state: 'collected',
@@ -699,14 +754,13 @@ export default function Playground() {
         indexInHand: null,
       };
     });
-
     const players = Object.keys(room.players);
     updates.activePlayer =
       players[(players.indexOf(player) + 1) % players.length];
     updates.turnNumber = currentTurn + 1;
 
     handCards
-      .filter(c => !samePriority.some(sp => sp.id === c.id))
+      .filter(c => c.id !== newPrev.id && !toCollect.some(tc => tc.id === c.id))
       .sort((a, b) => (a.indexInHand ?? 0) - (b.indexInHand ?? 0))
       .forEach((c, i) => {
         updates[`players/${player}/handCards/${c.id}/indexInHand`] = i;
@@ -742,10 +796,15 @@ export default function Playground() {
     return isHit;
   };
 
-  const animateCardToHand = (card: CardData, player: string) => {
+  const animateCardToHand = (
+    card: CardData,
+    player: string,
+    visualIndex: number,
+  ) => {
     'worklet';
 
-    const target = computeHandTarget(card.indexInHand.value ?? 0, player);
+    const target = computeHandTarget(visualIndex, player);
+    if (!target) return;
     if (target) {
       card.x.value = withTiming(target.x, {
         duration: 800,
@@ -839,7 +898,13 @@ export default function Playground() {
       if (!isInitialDeal && !stateChanged && !indexChanged) return;
 
       if (lc.state === 'hand') {
-        const target = computeHandTarget(lc.indexInHand ?? 0, lc.owner);
+        const hand = orderedHands[lc.owner];
+        if (!hand) return;
+
+        const visualIndex = hand.findIndex(c => c.id === lc.id);
+        if (visualIndex === -1) return;
+
+        const target = computeHandTarget(visualIndex, lc.owner);
         if (!target) return;
 
         if (isInitialDeal) {
@@ -862,7 +927,7 @@ export default function Playground() {
             }),
           );
         } else {
-          animateCardToHand(card, lc.owner);
+          animateCardToHand(card, lc.owner, visualIndex);
         }
       }
 
@@ -1078,7 +1143,7 @@ export default function Playground() {
   };
 
   useEffect(() => {
-    console.log('🚀 ~ Playground ~ roomId:', roomId);
+    // console.log('🚀 ~ Playground ~ roomId:', roomId);
     if (!roomId) return;
 
     const roomRef = ref(db, `room/${roomId}`);
@@ -1086,13 +1151,13 @@ export default function Playground() {
     const unsubscribe = onValue(roomRef, snapshot => {
       const roomData = snapshot.val();
 
-      console.log(
-        'updating>>>>>>>>>>>>>>>>>',
-        snapshot.exists(),
-        snapshot.val(),
-      );
+      // console.log(
+      //   'updating>>>>>>>>>>>>>>>>>',
+      //   snapshot.exists(),
+      //   snapshot.val(),
+      // );
 
-      console.log('🚀 ~ Playground ~ roomData:', roomData);
+      // console.log('🚀 ~ Playground ~ roomData:', roomData);
       if (roomData) {
         const playerCount = roomData.players
           ? Object.keys(roomData.players).length
