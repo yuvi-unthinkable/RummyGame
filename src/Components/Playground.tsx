@@ -1,7 +1,7 @@
 import {
   Canvas,
   Group,
-  Image, // Use standard Skia Image
+  Image,
   matchFont,
   Rect,
   SkImage,
@@ -33,9 +33,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardMeta, CardState, useDeck } from './cardTypes';
 import EndModal from './EndModal';
-
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-// import { UserContext } from '../context/UserContext';
 import { RootStackParamList } from '../navigators/types';
 import { useNavigation } from '@react-navigation/native';
 import { createRoom, JoinRoom, Player, RoomData } from '../Backend/Room';
@@ -45,8 +43,6 @@ import { getRoomSnap, UpdateCardData } from '../services/db.service';
 import Card from './Card';
 import { GameButton } from './GameButton';
 
-// import { auth, database } from '../context/Firebase';
-// import { get, set, update } from 'firebase/database';
 import {
   getDatabase,
   ref,
@@ -83,7 +79,6 @@ type HandCard = {
   indexInHand: number;
 };
 
-// type player = 'p1' | 'p2';
 type EndButtonVisible = Record<playerId, boolean>;
 
 type LogicalCard = {
@@ -91,7 +86,6 @@ type LogicalCard = {
   owner: playerId;
   state: CardState;
   indexInHand: number | null;
-  faceup: boolean;
 };
 
 const data = [
@@ -215,7 +209,6 @@ export default function Playground() {
     return;
   }, [room]);
 
-  // getting the user from the context
   const { user, loading } = useUser();
 
   const playersOpenedCards = useSharedValue(0);
@@ -252,83 +245,94 @@ export default function Playground() {
 
   const handStartX = userPositions;
 
+  // function computeHandTarget(index: number, owner: string) {
+  //   if (owner === 'unset' || !owner) return { x: 0, y: 0 }; // Guard clauseuE
+  //   const indexInHand = parseInt(owner[1]);
+  //   console.log('🚀 ~ computeHandTarget ~ indexInHand:', indexInHand);
+  //   const target = handStartX[indexInHand - 1];
+
+  //   if (!target) return { x: 0, y: 0 }; // Prevent null object access
+  //   if (target) {
+  //     if (playersCount === 2) {
+  //       return {
+  //         x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
+  //         y: target.y + 20,
+  //       };
+  //     } else if (playersCount === 3) {
+  //       if (owner === 'p1') {
+  //         return {
+  //           x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
+  //           y: target.y + 20,
+  //         };
+  //       } else {
+  //         return {
+  //           x: target.x,
+  //           y: (target.y * 3) / 2 + (cardHeight + spreadGap) * index,
+  //         };
+  //       }
+  //     } else if (playersCount === 4) {
+  //       if (owner === 'p1' || owner === 'p3') {
+  //         return {
+  //           x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
+  //           y: target.y + 20,
+  //         };
+  //       } else {
+  //         return {
+  //           x: target.x,
+  //           y: target.y - 40 + (cardHeight + spreadGap) * index,
+  //         };
+  //       }
+  //     } else if (playersCount === 5) {
+  //       if (owner === 'p1') {
+  //         return {
+  //           x: width / 2 - cardWidth * 3 + (cardWidth + spreadGap) * index,
+  //           y: target.y + 20,
+  //         };
+  //       } else if (owner === 'p3' || owner === 'p4') {
+  //         return {
+  //           x: owner === 'p3' ? target.x - 30 : target.x + 30,
+  //           y: target.y + 20 + (cardHeight + spreadGap) * index,
+  //         };
+  //       } else {
+  //         return {
+  //           x: owner === 'p2' ? target.x - 20 : target.x + 20,
+  //           y: target.y - 40 + (cardHeight + spreadGap) * index,
+  //         };
+  //       }
+  //     } else if (playersCount === 6) {
+  //       if (owner === 'p1' || owner === 'p4') {
+  //         return {
+  //           x: width / 2 - cardWidth * 3 + (cardWidth + spreadGap) * index,
+  //           y: owner === 'p1' ? target.y + 20 : target.y + 40,
+  //         };
+  //       } else if (owner === 'p3' || owner === 'p5') {
+  //         return {
+  //           x: owner === 'p3' ? target.x - 30 : target.x + 30,
+  //           y: target.y - 40 + (cardHeight + spreadGap) * index,
+  //         };
+  //       } else {
+  //         return {
+  //           x: owner === 'p2' ? target.x - 30 : target.x + 30,
+  //           y: target.y - 80 + (cardHeight + spreadGap) * index,
+  //         };
+  //       }
+  //     }
+  //   }
+  // }
+
   function computeHandTarget(index: number, owner: string) {
-    if (owner === 'unset' || !owner) {
-      console.log('owner is not present');
-      return { x: 0, y: 0 }; // Guard clauseuE
-    }
-    const playerIndex = parseInt(owner.slice(1), 10) - 1;
-    const target = handStartX[playerIndex];
-    if (!target) {
-      console.log('target is not present');
-      return { x: 0, y: 0 }; // Prevent null object access
-    }
-    if (target) {
-      if (playersCount === 2) {
-        return {
-          x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
-          y: target.y + 20,
-        };
-      } else if (playersCount === 3) {
-        if (owner === 'p1') {
-          return {
-            x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
-            y: target.y + 20,
-          };
-        } else {
-          return {
-            x: target.x,
-            y: (target.y * 3) / 2 + (cardHeight + spreadGap) * index,
-          };
-        }
-      } else if (playersCount === 4) {
-        if (owner === 'p1' || owner === 'p3') {
-          return {
-            x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
-            y: target.y + 20,
-          };
-        } else {
-          return {
-            x: target.x,
-            y: target.y - 40 + (cardHeight + spreadGap) * index,
-          };
-        }
-      } else if (playersCount === 5) {
-        if (owner === 'p1') {
-          return {
-            x: width / 2 - cardWidth * 3 + (cardWidth + spreadGap) * index,
-            y: target.y + 20,
-          };
-        } else if (owner === 'p3' || owner === 'p4') {
-          return {
-            x: owner === 'p3' ? target.x - 30 : target.x + 30,
-            y: target.y + 20 + (cardHeight + spreadGap) * index,
-          };
-        } else {
-          return {
-            x: owner === 'p2' ? target.x - 20 : target.x + 20,
-            y: target.y - 40 + (cardHeight + spreadGap) * index,
-          };
-        }
-      } else if (playersCount === 6) {
-        if (owner === 'p1' || owner === 'p4') {
-          return {
-            x: width / 2 - cardWidth * 3 + (cardWidth + spreadGap) * index,
-            y: owner === 'p1' ? target.y + 20 : target.y + 40,
-          };
-        } else if (owner === 'p3' || owner === 'p5') {
-          return {
-            x: owner === 'p3' ? target.x - 30 : target.x + 30,
-            y: target.y - 40 + (cardHeight + spreadGap) * index,
-          };
-        } else {
-          return {
-            x: owner === 'p2' ? target.x - 30 : target.x + 30,
-            y: target.y - 80 + (cardHeight + spreadGap) * index,
-          };
-        }
-      }
-    }
+    if (!owner || owner === 'unset') return null;
+
+    const playerIndex = Number(owner.slice(1)) - 1;
+    const anchor = handStartX[playerIndex];
+
+    if (!anchor) return null;
+
+    return {
+      x: 
+      (cardWidth * 4) / 2 + (cardWidth + spreadGap) * index,
+      y: anchor.y + 20,
+    };
   }
 
   function getHandForPlayer(room: RoomData, playerId: playerId): NetworkCard[] {
@@ -357,7 +361,6 @@ export default function Playground() {
           owner: pid,
           state: 'hand',
           indexInHand: c.indexInHand ?? null,
-          faceup: c.faceup,
         });
       });
     });
@@ -368,7 +371,6 @@ export default function Playground() {
         owner: 'unset',
         state: 'prevcard',
         indexInHand: null,
-        faceup: true,
       });
     }
 
@@ -378,7 +380,6 @@ export default function Playground() {
         owner: 'unset',
         state: 'collected',
         indexInHand: null,
-        faceup: false,
       });
     });
 
@@ -388,7 +389,6 @@ export default function Playground() {
         owner: 'unset',
         state: 'deck',
         indexInHand: null,
-        faceup: false,
       });
     });
 
@@ -469,30 +469,18 @@ export default function Playground() {
       const owner = players[i % players.length];
       const indexInHand = Math.floor(i / players.length);
 
-      // hands[owner].push({
-      //   id: cardId,
-      //   owner,
-      //   state: 'hand',
-      //   faceup: true,
-      //   indexInHand,
-      //   priority: cardDeck[cardId].priority,
-      // });
-
       hands[owner][cardId] = {
         id: cardId,
         owner,
         state: 'hand',
-        faceup: true,
         indexInHand,
         priority: cardDeck[cardId].priority,
       };
     });
 
-    // 4️⃣ Remaining deck
     const dealtIds = deckOrder.slice(0, players.length * cardsPerPlayer);
     const remainingDeck = deckOrder.filter(id => !dealtIds.includes(id));
 
-    // 5️⃣ Atomic DB update
     const updates: Record<string, any> = {};
 
     players.forEach(playerId => {
@@ -541,7 +529,6 @@ export default function Playground() {
       return;
     }
 
-    // 🔒 Authoritative turn check
     if (room.activePlayer !== myPlayerId) {
       console.log('[Release] Not your turn');
       return;
@@ -557,17 +544,13 @@ export default function Playground() {
 
     const handSize = handCards.length;
 
-    // 🔒 SINGLE atomic update
     const updates: Record<string, any> = {
       [`players/${myPlayerId}/handCards/${targetCardId}`]: {
         id: targetCardId,
         owner: myPlayerId,
         state: 'hand',
-        faceup: true,
         indexInHand: handSize,
-        priority: room.deck.order
-          ? undefined // priority already known by clients
-          : undefined,
+        priority: room.deck.order ? undefined : undefined,
       },
       deck: {
         order: room.deck.order.slice(1),
@@ -585,7 +568,6 @@ export default function Playground() {
 
     if (!room || !room.activePlayer || !myPlayerId) return;
 
-    // 🔒 Authoritative turn check
     if (room.activePlayer !== myPlayerId) {
       console.log('[ReleasePrev] Not your turn');
       return;
@@ -598,7 +580,6 @@ export default function Playground() {
 
     const prev = room.PreviousCard;
 
-    // 🔒 Ownership safety
     if (prev.owner && prev.owner !== 'unset') {
       console.log('[ReleasePrev] PreviousCard already owned');
       return;
@@ -612,7 +593,6 @@ export default function Playground() {
         ...prev,
         owner: myPlayerId,
         state: 'hand',
-        faceup: true,
         indexInHand: handSize,
       },
       PreviousCard: null,
@@ -630,130 +610,13 @@ export default function Playground() {
     setCardSent(true);
   };
 
-  // const removeHighestCards = async (card: CardData, player: playerId) => {
-  //   if (!room || !room.activePlayer) return;
-
-  //   // ✅ Correct authority check
-  //   if (room.activePlayer !== player) return;
-
-  //   const handMap = room.players[player]?.handCards;
-  //   if (!handMap) return;
-
-  //   const handCards = Object.values(handMap).filter(Boolean);
-
-  //   const currentTurn = room.turnNumber ?? 0;
-  //   const lock = room.turnLocks?.[player];
-
-  //   // 🔒 Turn lock validation
-  //   if (lock && lock.id === card.meta.id && currentTurn <= lock.untilTurn) {
-  //     Alert.alert(
-  //       'Invalid Move',
-  //       'You cannot send the card you just picked from previous.',
-  //     );
-  //     return;
-  //   }
-
-  //   console.log('passed blockers');
-
-  //   const allSamePriority = handCards.every(
-  //     c => c.priority === card.meta.priority,
-  //   );
-  //   setAllSameCards(allSamePriority);
-  //   console.log('🚀 ~ removeHighestCards ~ allSamePriority:', allSamePriority);
-
-  //   if (
-  //     lock &&
-  //     currentTurn <= lock.untilTurn &&
-  //     !allSamePriority &&
-  //     lock.blockedPriority === card.meta.priority
-  //   ) {
-  //     Alert.alert('Invalid Move', 'You cannot send this priority level yet.');
-  //     return;
-  //   }
-
-  //   const samePriority = handCards
-  //     .filter(c => c.priority === card.meta.priority)
-  //     .sort((a, b) => (a.indexInHand ?? 0) - (b.indexInHand ?? 0));
-  //   console.log('🚀 ~ removeHighestCards ~ samePriority:', samePriority);
-
-  //   if (samePriority.length === 0) return;
-
-  //   const updates: Record<string, any> = {};
-
-  //   // 1️⃣ Move old PreviousCard to abandoned
-  //   console.log(
-  //     '🚀 ~ removeHighestCards ~ room.PreviousCard:',
-  //     room?.PreviousCard,
-  //   );
-  //   if (room.PreviousCard) {
-  //     updates[`abandonedCards/${room.PreviousCard.id}`] = {
-  //       ...room.PreviousCard,
-  //       state: 'collected',
-  //       faceup: false,
-  //       owner: 'unset',
-  //       indexInHand: null,
-  //     };
-  //   }
-
-  //   updates.PreviousCard = null;
-
-  //   const newPrev = samePriority[samePriority.length - 1];
-  //   console.log('🚀 ~ removeHighestCards ~ newPrev:', newPrev);
-  //   const toCollect = samePriority.slice(0, -1);
-
-  //   samePriority.forEach(c => {
-  //     updates[`players/${player}/handCards/${c.id}`] = null;
-  //   });
-
-  //   updates.PreviousCard = {
-  //     ...newPrev,
-  //     state: 'prevcard',
-  //     owner: 'unset',
-  //     faceup: true,
-  //     indexInHand: null,
-  //   };
-
-  //   toCollect.forEach(c => {
-  //     updates[`abandonedCards/${c.id}`] = {
-  //       ...handMap[c.id],
-  //       state: 'collected',
-  //       faceup: false,
-  //       owner: 'unset',
-  //       indexInHand: null,
-  //     };
-  //   });
-
-  //   const players = Object.keys(room.players);
-  //   updates.activePlayer =
-  //     players[(players.indexOf(player) + 1) % players.length];
-  //   updates.turnNumber = currentTurn + 1;
-
-  //   handCards
-  //     .filter(c => !samePriority.some(sp => sp.id === c.id))
-  //     .sort((a, b) => (a.indexInHand ?? 0) - (b.indexInHand ?? 0))
-  //     .forEach((c, i) => {
-  //       updates[`players/${player}/handCards/${c.id}/indexInHand`] = i;
-  //     });
-
-  //   if (lock && currentTurn + 1 > lock.untilTurn) {
-  //     updates[`turnLocks/${player}`] = null;
-  //   }
-
-  //   await update(ref(db, `room/${roomId}`), updates);
-
-  //   const prevCard = room.PreviousCard;
-  //   console.log('🚀 ~ removeHighestCards ~ prevCard:', prevCard);
-
-  //   const abondnedCards = cards.filter(c => c.state.value === 'collected');
-  //   console.log('🚀 ~ removeHighestCards ~ abondnedCards:', abondnedCards);
-
-  //   setCardSent(false);
-  // };
   const removeHighestCards = async (card: CardData, player: playerId) => {
     if (!room || !room.activePlayer) {
       console.log('room not ready');
       return;
     }
+    if (!cardSent)
+      return console.log('[first take a card from deck or previous ards');
 
     const logical = logicalCards.find(c => c.id === card.meta.id);
     if (!logical) return;
@@ -780,22 +643,6 @@ export default function Playground() {
     }
 
     console.log('passed blockers');
-
-    // const allSamePriority = handCards.every(
-    //   c => c.priority === card.meta.priority,
-    // );
-    // setAllSameCards(allSamePriority);
-    // console.log('🚀 ~ removeHighestCards ~ allSamePriority:', allSamePriority);
-
-    // if (
-    //   lock &&
-    //   currentTurn <= lock.untilTurn &&
-    //   !allSamePriority &&
-    //   lock.blockedPriority === card.meta.priority
-    // ) {
-    //   Alert.alert('Invalid Move', 'You cannot send this priority level yet.');
-    //   return;
-    // }
 
     const samePriority = handCards
       .filter(c => c.priority === handMap[logical.id]?.priority)
@@ -825,7 +672,6 @@ export default function Playground() {
       updates[`abandonedCards/${room.PreviousCard.id}`] = {
         ...room.PreviousCard,
         state: 'collected',
-        faceup: false,
         owner: 'unset',
         indexInHand: null,
       };
@@ -842,7 +688,6 @@ export default function Playground() {
       ...newPrev,
       state: 'prevcard',
       owner: 'unset',
-      faceup: true,
       indexInHand: null,
     };
 
@@ -850,7 +695,6 @@ export default function Playground() {
       updates[`abandonedCards/${c.id}`] = {
         ...handMap[c.id],
         state: 'collected',
-        faceup: false,
         owner: 'unset',
         indexInHand: null,
       };
@@ -898,17 +742,11 @@ export default function Playground() {
     return isHit;
   };
 
-  const animateCardToHand = (card: CardData, player:string) => {
+  const animateCardToHand = (card: CardData, player: string) => {
     'worklet';
-    card.faceup.value = true;
 
-    const target = computeHandTarget(
-      card.indexInHand.value ?? 0,
-      player,
-    );
+    const target = computeHandTarget(card.indexInHand.value ?? 0, player);
     if (target) {
-      // card.x.value = withTiming(target.x, { duration: 350 });
-      // card.y.value = withTiming(target.y, { duration: 350 });
       card.x.value = withTiming(target.x, {
         duration: 800,
         easing: Easing.out(Easing.exp),
@@ -952,58 +790,6 @@ export default function Playground() {
     card.faceup.value = false;
   };
 
-  // useEffect(() => {
-  //   if (!room || !room.players) return;
-
-  //   Object.entries(room.players).forEach(([playerId, player]) => {
-  //     const hand = Object.values(player.handCards ?? {}).filter(Boolean);
-
-  //     hand.forEach(handCard => {
-  //       const localCard = cards.find(c => c.meta.id === handCard.id);
-  //       if (!localCard) return;
-
-  //       localCard.owner.value = playerId;
-  //       localCard.state.value = 'hand';
-  //       localCard.indexInHand.value = handCard.indexInHand ?? 0;
-  //       localCard.faceup.value = handCard.faceup;
-  //     });
-  //   });
-
-  //   const abondnedCards = Object.values(room.abandonedCards ?? {}).filter(
-  //     Boolean,
-  //   );
-
-  //   abondnedCards.forEach(handCard => {
-  //     const localCard = cards.find(c => c.meta.id === handCard.id);
-  //     if (!localCard) return;
-
-  //     localCard.owner.value = 'unset';
-  //     localCard.state.value = 'collected';
-  //     localCard.faceup.value = false;
-  //   });
-
-  //   const deckCards = Object.values(room.abandonedCards ?? {}).filter(Boolean);
-
-  //   deckCards.forEach(handCard => {
-  //     const localCard = cards.find(c => c.meta.id === handCard.id);
-  //     if (!localCard) return;
-
-  //     localCard.owner.value = 'unset';
-  //     localCard.state.value = 'deck';
-  //     localCard.faceup.value = false;
-  //   });
-
-  //   if (room.PreviousCard) {
-  //     const prevcard = room.PreviousCard;
-  //     const localCard = cards.find(c => c.meta.id === prevcard.id);
-  //     if (!localCard || !prevCard) return;
-
-  //     localCard.owner.value = 'unset';
-  //     localCard.state.value = 'prevcard';
-  //     localCard.faceup.value = true;
-  //   }
-  // }, [room]);
-
   useEffect(() => {
     logicalCards.forEach(lc => {
       const card = cards.find(c => c.meta.id === lc.id);
@@ -1012,57 +798,37 @@ export default function Playground() {
       card.owner.value = lc.owner;
       card.state.value = lc.state;
       card.indexInHand.value = lc.indexInHand;
-      card.faceup.value = lc.faceup;
+
+      const isMine = lc.owner === myPlayerId;
+
+      card.faceup.value =
+        lc.state === 'hand' ? isMine : lc.state === 'prevcard' ? true : false;
     });
   }, [logicalCards]);
 
-  // useEffect(() => {
-  //   if (!room) return;
-  //   Object.entries(room.players ?? {}).forEach(([pid, player]) => {
-  //     Object.values(player.handCards ?? {}).forEach(c => {
-  //       if (c.state === 'hand') {
-  //         const card = cards.find(ca => ca.meta.id === c.id);
-  //         if (card) animateCardToHand(card);
-  //       }
-  //     });
-  //   });
-  // }, [gameStarted]);
+  useEffect(() => {
+    if (!room || !user?.uid) return;
 
-  // useEffect(() => {
-  //   console.log('useeffec to position with useeffect');
+    const id = Object.entries(room.players ?? {}).find(
+      ([_, player]) => player.userId === user.uid,
+    )?.[0];
 
-  //   console.log('🚀 ~ Playground ~ cards:', cards);
-
-  //   cards.forEach(card => {
-  //     const currentState = card.state.value;
-  //     if (currentState === 'hand') {
-  //       // console.log('came to hand');
-
-  //       animateCardToHand(card);
-  //     } else if (currentState === 'deck') {
-  //       // console.log('came to deck');
-  //       card.x.value = withTiming(deckX, { duration: 500 });
-  //       card.y.value = withTiming(deckY, { duration: 500 });
-  //     } else if (currentState === 'prevcard') {
-  //       // console.log('came to prevcard');
-
-  //       animateCardToPrev(card);
-  //     } else if (currentState === 'collected') {
-  //       // console.log('came to collected');
-
-  //       animateCardToCollected(card);
-  //     }
-  //   });
-  //   console.log('🚀 ~ Playground ~ cards:', cards);
-  // }, [room, room?.players]);
+    if (id && id !== myId) {
+      setMyId(id);
+    }
+  }, [room, user]);
 
   useEffect(() => {
+    const layoutReady =
+      width > 0 && height > 0 && userPositions.length === playersCount;
+
+    if (!layoutReady) return;
+
+    const isInitialDeal = room?.status === 'playing' && room?.turnNumber === 0;
+
     logicalCards.forEach(lc => {
       const card = cards.find(c => c.meta.id === lc.id);
-
       if (!card) return;
-
-      const player = lc.owner;
 
       const prevState = prevStateRef.current[lc.id];
       const prevIndex = prevIndexRef.current[lc.id];
@@ -1070,30 +836,56 @@ export default function Playground() {
       const stateChanged = prevState !== lc.state;
       const indexChanged = prevIndex !== lc.indexInHand;
 
-      card.faceup.value = lc.faceup;
+      if (!isInitialDeal && !stateChanged && !indexChanged) return;
 
-      if (!stateChanged && !indexChanged) return;
+      if (lc.state === 'hand') {
+        const target = computeHandTarget(lc.indexInHand ?? 0, lc.owner);
+        if (!target) return;
 
-      switch (lc.state) {
-        case 'hand':
-          animateCardToHand(card,player);
-          break;
-        case 'deck':
-          card.x.value = withTiming(deckX);
-          card.y.value = withTiming(deckY);
-          break;
-        case 'prevcard':
-          animateCardToPrev(card);
-          break;
-        case 'collected':
-          animateCardToCollected(card);
-          break;
+        if (isInitialDeal) {
+          const delay =
+            ((lc.indexInHand ?? 0) + Number(lc.owner.slice(1)) * 0.5) * 120;
+
+          card.x.value = withDelay(
+            delay,
+            withTiming(target.x, {
+              duration: 500,
+              easing: Easing.out(Easing.cubic),
+            }),
+          );
+
+          card.y.value = withDelay(
+            delay,
+            withTiming(target.y, {
+              duration: 500,
+              easing: Easing.out(Easing.cubic),
+            }),
+          );
+        } else {
+          animateCardToHand(card, lc.owner);
+        }
       }
 
-      prevStateRef.current[lc.id] = lc.state;
-      prevIndexRef.current[lc.id] = lc.indexInHand;
+      if (lc.state === 'deck') {
+        card.x.value = withTiming(deckX);
+        card.y.value = withTiming(deckY);
+      }
+
+      if (lc.state === 'prevcard') {
+        card.faceup.value = true;
+        animateCardToPrev(card);
+      }
+
+      if (lc.state === 'collected') {
+        animateCardToCollected(card);
+      }
+
+      if (!isInitialDeal) {
+        prevStateRef.current[lc.id] = lc.state;
+        prevIndexRef.current[lc.id] = lc.indexInHand;
+      }
     });
-  }, [logicalCards]);
+  }, [logicalCards, width, height, playersCount]);
 
   const getMyPlayerId = () => {
     if (!room) return;
@@ -1148,18 +940,13 @@ export default function Playground() {
       for (let i = cards.length - 1; i >= 0; i--) {
         const card = cards[i];
 
-        // Hit test still uses SharedValues (correct)
         if (!cardHitTest(event.x, event.y, card)) continue;
 
         const logical = getLogicalCard(card.meta.id);
         if (!logical) return;
 
-        // 🔒 Universal authority checks
         if (!room || !myPlayerId) return;
 
-        // ===============================
-        // DECK DRAW
-        // ===============================
         if (logical.state === 'deck') {
           if (room.activePlayer !== myPlayerId) {
             Alert.alert('Not your turn');
@@ -1170,9 +957,6 @@ export default function Playground() {
           return;
         }
 
-        // ===============================
-        // PREVIOUS CARD PICKUP
-        // ===============================
         if (logical.state === 'prevcard') {
           if (room.activePlayer !== myPlayerId) {
             Alert.alert('Not your turn');
@@ -1183,9 +967,6 @@ export default function Playground() {
           return;
         }
 
-        // ===============================
-        // HAND CARD PLAY
-        // ===============================
         if (logical.state === 'hand') {
           if (room.activePlayer !== myPlayerId) {
             Alert.alert('Not your turn');
@@ -1201,9 +982,6 @@ export default function Playground() {
           return;
         }
 
-        // ===============================
-        // EVERYTHING ELSE → IGNORE
-        // ===============================
         return;
       }
     });
@@ -1224,12 +1002,14 @@ export default function Playground() {
   async function newGame() {
     await update(ref(db, `room/${roomId}`), {
       status: 'waiting',
+      turnNumber: null,
       cards: null,
       deck: null,
       activePlayer: null,
     });
-    hasDealtRef.current = false; // 🔴 REQUIRED
+    hasDealtRef.current = false;
     // setGameStarted(false);
+
     setdeckFlattened(false);
     setPrevCard(undefined);
     setShowModal(false);
@@ -1255,6 +1035,7 @@ export default function Playground() {
   const endingManually = async () => {
     setQuitConfirmation(false);
     setQuitModal(false);
+    const roomRef = ref(db, `room/${roomId}`);
 
     if (!room || !room?.players || !room?.activePlayer) return;
 
@@ -1264,107 +1045,37 @@ export default function Playground() {
 
     const players = Object.keys(room.players);
 
-    // const scores = players.map(playerId => {
-    //   const score = Object.entries(cardsMap)
-    //     .filter(([_, c]: any) => c.owner === playerId && c.state === 'hand')
-    //     .reduce((sum, [id]) => {
-    //       const localCard = cards.find(c => c.meta.id === Number(id));
-    //       return sum + (localCard?.meta.priority ?? 0);
-    //     }, 0);
+    const scores = players.map(playerId => {
+      const score = Object.entries(cardsMap)
+        .filter(([_, c]: any) => c.owner === playerId && c.state === 'hand')
+        .reduce((sum, [id]) => {
+          const localCard = cards.find(c => c.meta.id === Number(id));
+          return sum + (localCard?.meta.priority ?? 0);
+        }, 0);
 
-    //   return { playerId, score };
-    // });
+      return { playerId, score };
+    });
 
-    // const minScore = Math.min(...scores.map(s => s.score));
+    const minScore = Math.min(...scores.map(s => s.score));
 
-    // const winners = scores
-    //   .filter(s => s.score === minScore)
-    //   .map(s => s.playerId);
+    const winners = scores
+      .filter(s => s.score === minScore)
+      .map(s => s.playerId);
 
-    // await update(roomRef, {
-    //   status: 'ended',
-    //   result: {
-    //     winners,
-    //     scores,
-    //     endedAt: Date.now(),
-    //   },
-    // });
+    await update(roomRef, {
+      status: 'ended',
+      result: {
+        winners,
+        scores,
+        endedAt: Date.now(),
+      },
+    });
 
-    // setWinningPlayer(winners.join(' & '));
+    setWinningPlayer(winners.join(' & '));
     playersOpenedCards.value = 0;
     setShowModal(true);
     setCardReleased(false);
   };
-
-  const startGame = async () => {
-    setdeckFlattened(true);
-    // dealing();
-  };
-
-  // const sortedCards = useMemo(() => {
-  //   // If cards is undefined/null, return empty array to prevent crash
-  //   if (!room || !room.deck || room.deck.order?.length === 0) return [];
-
-  //   // Create a shallow copy to sort without mutating the original shared value reference
-  //   return [...cards].sort((a, b) => {
-  //     const statePriority = {
-  //       collected: 1, // Bottom layer
-  //       deck: 2,
-  //       player: 3,
-  //       hand: 4,
-  //       prevcard: 5,
-  //       show: 6, // Top layer (active/dragging)
-  //     };
-
-  //     // Get priority, default to 0 if state is missing
-  //     const priorityA = a.state ? statePriority[a.state.value] : 0;
-  //     const priorityB = b.state ? statePriority[b.state.value] : 0;
-
-  //     // Primary Sort: By State (Layering)
-  //     if (priorityA !== priorityB) {
-  //       return priorityA - priorityB;
-  //     }
-
-  //     // Secondary Sort: By ID (Stability)
-  //     // Ensures cards don't "flicker" swap positions when in the same state
-  //     return (a.meta?.id || 0) - (b.meta?.id || 0);
-  //   });
-  // }, [cards]); // Only re-run this heavy sort when 'cards' array reference changes
-
-  // useEffect(() => {
-  //   // console.log('UseEffectCalleds');
-  //   if (!roomId) return;
-  //   const roomRef = ref(db, `room/${roomId}`);
-
-  //   const unsubscribe = onValue(roomRef, snapshot => {
-  //     const roomData: RoomData = snapshot.val();
-
-  //     if (roomData) {
-  //       const playerCount = roomData.players
-  //         ? Object.keys(roomData.players).length
-  //         : 0;
-
-  //       setroom(roomData);
-
-  //       if (
-  //         roomData.status === 'playing' &&
-  //         roomData.hostUid === user?.uid &&
-  //         !roomData.players['p1'].handCards &&
-  //         !hasDealtRef.current &&
-  //         playerCount === roomData.playerCount
-  //       ) {
-  //         console.log('Host initiating deal...');
-  //         setdeckFlattened(true);
-  //         hasDealtRef.current = true; // Lock immediately to prevent double deal
-  //         setroom(roomData);
-  //         dealCardsHostOnly(roomId, roomData, roomRef);
-  //         return;
-  //       }
-  //     }
-  //   });
-
-  //   return () => unsubscribe();
-  // }, [roomId, user]);
 
   useEffect(() => {
     console.log('🚀 ~ Playground ~ roomId:', roomId);
@@ -1387,16 +1098,6 @@ export default function Playground() {
           ? Object.keys(roomData.players).length
           : 0;
 
-        // DEBUG: Help trace dealing issues
-        if (roomData.status === 'playing' && !roomData.cards) {
-          console.log('[GameLoop] Checking Deal Conditions:', {
-            isHost: roomData.hostUid === user?.uid,
-            alreadyDealt: hasDealtRef.current,
-            playersReady: playerCount === roomData.playerCount,
-          });
-        }
-
-        // HOST LOGIC: Deal cards only if specific conditions are met
         if (
           roomData.status === 'playing' &&
           roomData.hostUid === user?.uid &&
@@ -1406,13 +1107,14 @@ export default function Playground() {
         ) {
           console.log('Host initiating deal...');
           setdeckFlattened(true);
-          hasDealtRef.current = true; // Lock immediately to prevent double deal
+          hasDealtRef.current = false;
+
+          prevStateRef.current = {};
+          prevIndexRef.current = {};
           dealCardsHostOnly(roomId, roomData, roomRef);
         }
 
-        // CLIENT LOGIC: Check if game is ready to render
         if (roomData?.players?.p1?.handCards && roomData?.deck) {
-          // Only set this if it's currently false to prevent extra re-renders
           setGameStarted(prev => (!prev ? true : prev));
         }
 
@@ -1579,16 +1281,15 @@ export default function Playground() {
                 ))}
               </Group>
 
-              {/* 4. Cards Layer (USING SORTED CARDS) */}
               <Group>
                 {cards.map(card => (
                   <Card
                     key={card.meta.id}
                     x={card.x}
                     y={card.y}
-                    owner={card.owner} // Pass the SharedValue
-                    state={card.state} // Pass the SharedValue
-                    myId={myId} // Pass the string ID
+                    owner={card.owner}
+                    state={card.state}
+                    myId={myId}
                     backCardImg={backCardImg}
                     faceCardImg={card.cardFaceImg}
                     cardWidth={cardWidth}
@@ -1600,27 +1301,23 @@ export default function Playground() {
             </Canvas>
           </GestureDetector>
 
-          {/* 5. UI Overlay (Buttons) */}
-          {/* Note: Ensure playersOpenedCards.value is synced to state if you want this to appear/disappear reactively, 
-              otherwise wrap this View in a Reanimated Component */}
           {gameStarted && (
             <View
               style={{
                 position: 'absolute',
                 left: endBtnPos.x,
                 top: endBtnPos.y,
-                width: 100, // Increased width for text
+                width: 100,
                 height: 40,
-                zIndex: 100, // Ensure it's clickable
+                zIndex: 100,
               }}
             >
-              {/* FIX: Use a React State variable here, NOT activePlayer.value directly */}
-              {/* <GameButton
+              <GameButton
                 title="End Turn"
                 danger
                 onPress={confirmQuit}
                 disabled={previosCardReleased || cardReleased}
-              /> */}
+              />
             </View>
           )}
         </GestureHandlerRootView>

@@ -11,7 +11,6 @@ export type NetworkCard = {
   id: number;
   owner: string;
   state: CardState;
-  faceup: boolean;
   indexInHand: number;
   priority: number;
 };
@@ -94,7 +93,6 @@ export function useGameStarted(
         card.meta.id = netCard.id;
         card.owner.value = netCard.owner;
         card.state.value = netCard.state;
-        card.faceup.value = netCard.faceup;
         card.indexInHand.value = netCard.indexInHand ?? null;
         card.meta.priority = netCard.priority;
       });
