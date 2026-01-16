@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import auth, { FirebaseAuthTypes, onAuthStateChanged } from '@react-native-firebase/auth';
+import  { FirebaseAuthTypes, getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 
 type UserContextType = {
   user: any | null;
@@ -14,9 +14,10 @@ const UserContext = createContext<UserContextType>({
 export const UserProvider = ({ children }: any) => {
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const auth = getAuth()
 
   useEffect(() => {
-    const unsub = auth().onAuthStateChanged( firebaseUser => {
+    const unsub = onAuthStateChanged(auth, firebaseUser => {
       setUser(firebaseUser);
       setLoading(false);
     });

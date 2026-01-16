@@ -1,7 +1,6 @@
-import { database } from '../context/Firebase';
 import { RoomData } from '../Backend/Room';
-
-const db = database;
+import { get, getDatabase, ref, set } from '@react-native-firebase/database';
+const db = getDatabase();
 
 // export function UpdateDeck(roomId: number, deck: CardData[]) {
 //   const roomRef = ref(db, `room/${roomId}`);
@@ -93,8 +92,8 @@ const db = database;
 
 // function to get current snap of room
 export async function getRoomSnap(roomId: number): Promise<RoomData | null> {
-  const roomRef = database().ref(`room/${roomId}`);
-  const snapshot = await roomRef.once('value');
+  const roomRef = ref(db, `room/${roomId}`);
+  const snapshot = await get(roomRef);
 
   if (!snapshot.exists()) {
     return null;
@@ -104,6 +103,15 @@ export async function getRoomSnap(roomId: number): Promise<RoomData | null> {
 }
 
 // function to get current snap of card
+export async function getPlayerSnap(roomId: number, playerInfo: string) {
+  const cardRef = ref(db, `room/${roomId}/players/${playerInfo}`);
+
+  const snapshot = await cardRef.once('value');
+  if (snapshot.exists()) {
+    return snapshot.val;
+  }
+  return undefined;
+}
 export async function getCardSnap(
   roomId: number,
   cardId: number,
@@ -112,7 +120,7 @@ export async function getCardSnap(
   faceup: boolean,
   indexInHand: number,
 ) {
-  const cardRef = database().ref(`room/${roomId}/cards/${cardId}`);
+  const cardRef = ref(db, `room/${roomId}/cards/${cardId}`);
 
   const snapshot = await cardRef.once('value');
   if (snapshot.exists()) {
@@ -129,7 +137,7 @@ export async function UpdateCardData(
   faceup: boolean,
   indexInHand: number,
 ) {
-  const cardRef = database().ref(`room/${roomId}/cards/${cardId}`);
+  const cardRef = ref(db, `room/${roomId}/cards/${cardId}`);
 
   await cardRef.update({
     owner,
@@ -140,6 +148,6 @@ export async function UpdateCardData(
 }
 
 export async function UpdateRoomData(roomId: number, room: RoomData) {
-  const roomRef = database().ref(`room/${roomId}`);
-  await roomRef.set(room);
+  const roomRef = ref(db, `room/${roomId}`);
+  await set(roomRef, room);
 }

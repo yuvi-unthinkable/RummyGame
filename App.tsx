@@ -2,7 +2,6 @@ import React from 'react';
 import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { database } from './src/context/Firebase';
 
 // Your Context
 // import { UserProvider, useUser } from './context/UserContext';

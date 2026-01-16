@@ -4,16 +4,23 @@ import { useWindowDimensions } from 'react-native';
 import { useEffect, useMemo } from 'react';
 import { CardData } from '../Components/Playground';
 import { database } from '../context/Firebase';
-import { onValue } from '@react-native-firebase/database';
+import { getDatabase, onValue, ref } from '@react-native-firebase/database';
+import { Player } from './Room';
 
 export type NetworkCard = {
+  id: number;
   owner: string;
   state: CardState;
   faceup: boolean;
-  indexInHand?: number;
+  indexInHand: number;
+  priority: number;
 };
 
-export function useGameStarted(roomId: number, _gameStarted: boolean) {
+export function useGameStarted(
+  roomId: number,
+  gameStarted: boolean,
+  players?: Record<string, Player>,
+) {
   const cardDeck = useDeck();
   const { width, height } = useWindowDimensions();
 
@@ -22,6 +29,8 @@ export function useGameStarted(roomId: number, _gameStarted: boolean) {
 
   const deckX = width / 2 - cardWidth / 2;
   const deckY = height / 2 - cardHeight / 2;
+
+  const db = getDatabase();
 
   /**
    * 1️⃣ SharedValues — created ONCE per device
@@ -72,7 +81,7 @@ export function useGameStarted(roomId: number, _gameStarted: boolean) {
   useEffect(() => {
     if (!roomId || !cards.length) return;
 
-    const roomRef = database().ref(`room/${roomId}`);
+    const roomRef = ref(db, `room/${roomId}`);
 
     return onValue(roomRef, snapshot => {
       const room = snapshot.val();
@@ -82,14 +91,15 @@ export function useGameStarted(roomId: number, _gameStarted: boolean) {
         const netCard = raw as NetworkCard;
         const card = cards.find(c => c.meta.id === Number(id));
         if (!card) return;
-
+        card.meta.id = netCard.id;
         card.owner.value = netCard.owner;
         card.state.value = netCard.state;
         card.faceup.value = netCard.faceup;
         card.indexInHand.value = netCard.indexInHand ?? null;
+        card.meta.priority = netCard.priority;
       });
     });
-  }, [roomId, cards]);
+  }, [roomId, cards, gameStarted, players]);
 
   return cards;
 }
