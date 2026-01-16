@@ -355,6 +355,12 @@ export default function Playground() {
     };
   }
 
+  useEffect(() => {
+    if (room?.status === 'ended') {
+      endingManually();
+    }
+  }, [room?.status]);
+
   function getHandForPlayer(room: RoomData, playerId: playerId): NetworkCard[] {
     const map = room.players[playerId]?.handCards;
     return map ? Object.values(map).filter(Boolean) : [];
@@ -374,16 +380,18 @@ export default function Playground() {
 
     const result: LogicalCard[] = [];
 
-    Object.entries(room.players ?? {}).forEach(([pid, player]) => {
-      Object.values(player.handCards ?? {}).forEach(c => {
-        result.push({
-          id: c.id,
-          owner: pid,
-          state: 'hand',
-          indexInHand: c.indexInHand ?? null,
+    Object.entries(room.players ?? {})
+      .filter(Boolean)
+      .forEach(([pid, player]) => {
+        Object.values(player.handCards ?? {}).forEach(c => {
+          result.push({
+            id: c.id,
+            owner: pid,
+            state: 'hand',
+            indexInHand: c.indexInHand ?? null,
+          });
         });
       });
-    });
 
     if (room.PreviousCard) {
       result.push({
@@ -394,14 +402,16 @@ export default function Playground() {
       });
     }
 
-    Object.values(room.abandonedCards ?? {}).forEach(c => {
-      result.push({
-        id: c.id,
-        owner: 'unset',
-        state: 'collected',
-        indexInHand: null,
+    Object.values(room.abandonedCards ?? {})
+      .filter(Boolean)
+      .forEach(c => {
+        result.push({
+          id: c.id,
+          owner: 'unset',
+          state: 'collected',
+          indexInHand: null,
+        });
       });
-    });
 
     room.deck?.order?.forEach(id => {
       result.push({
@@ -565,6 +575,8 @@ export default function Playground() {
       return;
     }
 
+    if (room?.status === 'ended') return;
+
     if (!myPlayerId || !room.players[myPlayerId]) {
       console.log('[Release] Player not registered');
       return;
@@ -608,6 +620,8 @@ export default function Playground() {
     if (cardSent) return console.log('[ReleasePrev] One card already sent');
 
     if (!room || !room.activePlayer || !myPlayerId) return;
+
+    if (room?.status === 'ended') return;
 
     if (room.activePlayer !== myPlayerId) {
       console.log('[ReleasePrev] Not your turn');
@@ -657,6 +671,8 @@ export default function Playground() {
       console.log('room not ready');
       return;
     }
+    if (room?.status === 'ended') return;
+
     if (!cardSent)
       return console.log('[first take a card from deck or previous ards');
 
@@ -713,8 +729,6 @@ export default function Playground() {
       return;
     }
 
-    const updates: Record<string, any> = {};
-
     // if (room.PreviousCard) {
     //   updates[`abandonedCards/${room.PreviousCard.id}`] = {
     //     ...room.PreviousCard,
@@ -723,6 +737,25 @@ export default function Playground() {
     //     indexInHand: null,
     //   };
     // }
+
+    const updates: Record<string, any> = {};
+
+    const remainingHand = handCards.filter(
+      c => c.id !== newPrev.id && !toCollect.some(tc => tc.id === c.id),
+    );
+
+    const didPlayerWin = remainingHand.length === 0;
+
+    if (didPlayerWin) {
+      updates.status = 'ended';
+      updates.result = {
+        winners: [player],
+        reason: 'empty-hand',
+        endedAt: Date.now(),
+      };
+
+      updates.activePlayer = null;
+    }
 
     if (room.PreviousCard) {
       updates[`abandonedCards/${room.PreviousCard.id}`] = {
@@ -754,10 +787,13 @@ export default function Playground() {
         indexInHand: null,
       };
     });
-    const players = Object.keys(room.players);
-    updates.activePlayer =
-      players[(players.indexOf(player) + 1) % players.length];
-    updates.turnNumber = currentTurn + 1;
+
+    if (!didPlayerWin) {
+      const players = Object.keys(room.players);
+      updates.activePlayer =
+        players[(players.indexOf(player) + 1) % players.length];
+      updates.turnNumber = currentTurn + 1;
+    }
 
     handCards
       .filter(c => c.id !== newPrev.id && !toCollect.some(tc => tc.id === c.id))
@@ -997,10 +1033,7 @@ export default function Playground() {
     .maxDuration(250)
     .runOnJS(true)
     .onStart(async event => {
-      if (gameEnded) {
-        newGame();
-        return;
-      }
+      if (room?.status === 'ended') return;
 
       for (let i = cards.length - 1; i >= 0; i--) {
         const card = cards[i];
@@ -1104,19 +1137,15 @@ export default function Playground() {
 
     if (!room || !room?.players || !room?.activePlayer) return;
 
-    const hand = getHandForPlayer(room, room?.activePlayer);
-
-    const cardsMap = hand;
-
     const players = Object.keys(room.players);
 
     const scores = players.map(playerId => {
-      const score = Object.entries(cardsMap)
-        .filter(([_, c]: any) => c.owner === playerId && c.state === 'hand')
-        .reduce((sum, [id]) => {
-          const localCard = cards.find(c => c.meta.id === Number(id));
-          return sum + (localCard?.meta.priority ?? 0);
-        }, 0);
+      const hand = getHandForPlayer(room, playerId);
+
+      const score = hand.reduce((sum, c) => {
+        const localCard = cards.find(card => card.meta.id === c.id);
+        return sum + (localCard?.meta.priority ?? 0);
+      }, 0);
 
       return { playerId, score };
     });

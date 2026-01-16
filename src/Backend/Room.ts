@@ -30,6 +30,12 @@ export type RoomData = {
   turnNumber?: number;
 
   PreviousCard?: NetworkCard;
+
+  result?: {
+    winners: string[];
+    reason: 'empty-hand' | 'manual-end';
+    endedAt: number;
+  };
 };
 
 export type Player = {
@@ -111,7 +117,7 @@ export const JoinRoom = async (roomId: number, uid: string) => {
 
   // 5️⃣ Atomic update
 
-  const roomRef = ref(db,`room/${roomId}`);
+  const roomRef = ref(db, `room/${roomId}`);
 
   await update(roomRef, {
     players: updatedPlayers,
