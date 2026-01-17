@@ -126,15 +126,15 @@ export default function Playground() {
   });
 
   const [showModal, setShowModal] = useState(false);
-  const [quitModal, setQuitModal] = useState(false);
   const [activeDeck, setactiveDeck] = useState(false);
   const [playersCount, setPlayersCount] = useState(2);
   const [roomId, setRoomId] = useState(123456);
-  const [quitConfirmation, setQuitConfirmation] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
   const [gameRoomData, setGameRoomData] = useState<RoomData | null>(null);
   const [deckFlattened, setdeckFlattened] = useState(false);
   const [myId, setMyId] = useState('');
+  const [showQuitModal, setShowQuitModal] = useState(false);
+
   const [prevCardReleased, setprevCardReleased] = useState<CardData | null>(
     null,
   );
@@ -847,6 +847,27 @@ export default function Playground() {
     setCardSent(false);
   };
 
+  const getWinner = (clickedPlayer: playerId): playerId | undefined => {
+    if (!room) return;
+
+    const scores = Object.keys(room.players).map(playerId => {
+      const hand = getHandForPlayer(room, playerId);
+      const score = hand.reduce((sum, c) => sum + c.priority, 0);
+      return { playerId, score };
+    });
+
+    const minScore = Math.min(...scores.map(s => s.score));
+    const lowest = scores.filter(s => s.score === minScore);
+
+    // Tie breaker: clicked player loses
+    if (lowest.length > 1) {
+      const winner = lowest.find(s => s.playerId !== clickedPlayer);
+      return winner?.playerId;
+    }
+
+    return lowest[0].playerId;
+  };
+
   const cardHitTest = (x: number, y: number, card: CardData) => {
     'worklet';
     const cx = card.x.value;
@@ -1063,6 +1084,7 @@ export default function Playground() {
     .maxDuration(250)
     .runOnJS(true)
     .onStart(async event => {
+      if(gameEnded) setGameStarted(false)
       if (room?.status === 'ended') return;
 
       for (let i = cards.length - 1; i >= 0; i--) {
@@ -1141,8 +1163,6 @@ export default function Playground() {
 
   const handleCancel = () => {
     setShowModal(false);
-    setQuitConfirmation(false);
-    setQuitModal(false);
   };
   const handleResult = () => {
     setShowModal(false);
@@ -1150,10 +1170,7 @@ export default function Playground() {
     playersOpenedCards.value = 0;
   };
 
-  const confirmQuit = () => {
-    setQuitConfirmation(true);
-    setQuitModal(true);
-  };
+  const confirmQuit = async () => {};
 
   // const endingManually = async () => {
   //   setQuitConfirmation(false);
@@ -1196,43 +1213,40 @@ export default function Playground() {
   //   setCardReleased(false);
   // };
 
-  const endingManually = async () => {
-    setQuitConfirmation(false);
-    setQuitModal(false);
+  // const endingManually = async () => {
+  //   if (!room) return;
+  //   if (room.status === 'ended') return;
+  //   if (room.hostUid !== user?.uid) return; // 🔒 host-only
 
-    if (!room) return;
-    if (room.status === 'ended') return;
-    if (room.hostUid !== user?.uid) return; // 🔒 host-only
+  //   const roomRef = ref(db, `room/${roomId}`);
 
-    const roomRef = ref(db, `room/${roomId}`);
+  //   const scores = Object.entries(room.players).map(([playerId, player]) => {
+  //     const hand = Object.values(player.handCards ?? {}).filter(Boolean);
 
-    const scores = Object.entries(room.players).map(([playerId, player]) => {
-      const hand = Object.values(player.handCards ?? {}).filter(Boolean);
+  //     const score = hand.reduce((sum, card) => {
+  //       return sum + card.priority;
+  //     }, 0);
 
-      const score = hand.reduce((sum, card) => {
-        return sum + card.priority;
-      }, 0);
+  //     return { playerId, score };
+  //   });
 
-      return { playerId, score };
-    });
+  //   const minScore = Math.min(...scores.map(s => s.score));
 
-    const minScore = Math.min(...scores.map(s => s.score));
+  //   const winners = scores
+  //     .filter(s => s.score === minScore)
+  //     .map(s => s.playerId);
 
-    const winners = scores
-      .filter(s => s.score === minScore)
-      .map(s => s.playerId);
-
-    await update(roomRef, {
-      status: 'ended',
-      activePlayer: null,
-      result: {
-        winners,
-        scores,
-        reason: 'manual-end-lowest-priority-sum',
-        endedAt: Date.now(),
-      },
-    });
-  };
+  //   await update(roomRef, {
+  //     status: 'ended',
+  //     activePlayer: null,
+  //     result: {
+  //       winners,
+  //       scores,
+  //       reason: 'manual-end-lowest-priority-sum',
+  //       endedAt: Date.now(),
+  //     },
+  //   });
+  // };
 
   useEffect(() => {
     // console.log('🚀 ~ Playground ~ roomId:', roomId);
@@ -1288,15 +1302,33 @@ export default function Playground() {
   return (
     <View style={{ width: width, height: height, backgroundColor: '#1e1e1e' }}>
       {/* --- MODALS --- */}
-      {quitConfirmation && (
+      {showQuitModal && (
         <EndModal
-          visible={quitModal}
-          onClose={() => handleCancel()}
-          onProceed={() => endingManually()}
-          heading={'Quit Game'}
-          message={`Are you sure you want to end the game?`}
+          visible={showQuitModal}
+          heading="Quit Game"
+          message="Are you sure you want to end the game?"
           button1="Cancel"
           button2="Quit"
+          onClose={() => setShowQuitModal(false)}
+          onProceed={async () => {
+            if (!room || !myPlayerId) return;
+
+            const winner = getWinner(myPlayerId);
+            if (!winner) return;
+
+            await update(ref(db, `room/${roomId}`), {
+              status: 'ended',
+              activePlayer: null,
+              result: {
+                winners: winner,
+                reason: 'manual-end',
+                endedAt: Date.now(),
+                endedBy: myPlayerId,
+              },
+            });
+
+            setShowQuitModal(false);
+          }}
         />
       )}
 
@@ -1307,7 +1339,11 @@ export default function Playground() {
           onClose={() => handleResult()}
           onProceed={() => newGame()}
           heading={'Game Ended'}
-          message={`${winningPlayer} has won the game`}
+          message={
+            room?.result?.reason === 'manual-end'
+              ? `Game ended by ${room?.result?.endedBy}  and ${room?.result?.winners} has won the game`
+              : `${winningPlayer} has won the game`
+          }
           button1="Result"
           button2="New Game"
         />
@@ -1472,8 +1508,10 @@ export default function Playground() {
               <GameButton
                 title="End Turn"
                 danger
-                onPress={confirmQuit}
-                disabled={previosCardReleased || cardReleased}
+                onPress={() => {
+                  if (!myPlayerId) return;
+                  setShowQuitModal(true);
+                }}
               />
             </View>
           )}

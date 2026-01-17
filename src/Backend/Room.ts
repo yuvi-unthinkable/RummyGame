@@ -35,6 +35,7 @@ export type RoomData = {
     winners: string[];
     reason: 'empty-hand' | 'manual-end';
     endedAt: number;
+    endedBy?:string;
   };
 };
 
