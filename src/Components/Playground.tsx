@@ -48,6 +48,7 @@ import {
   ref,
   update,
   onValue,
+  set,
 } from '@react-native-firebase/database';
 import { getApp } from '@react-native-firebase/app';
 
@@ -203,11 +204,39 @@ export default function Playground() {
 
   useEffect(() => {
     if (room?.status === 'playing') {
-      // console.log('🚀 ~ Playground ~ gameStarted:', gameStarted);
       setGameStarted(true);
-    }
-    return;
-  }, [room]);
+    } else if (room?.status !== 'ended') return;
+
+    const winners = room.result?.winners;
+    if (!winners?.length) return;
+
+    setWinningPlayer(winners.join(' & '));
+    setShowModal(true);
+  }, [room?.status]);
+
+  useEffect(() => {
+    if (!room) return;
+    if (room.deck != null) return;
+    if (!room.abandonedCards) return;
+
+    const rebuildDeck = async () => {
+      const cards = Object.values(room.abandonedCards || [])
+        .filter((c): c is NetworkCard => c != null)
+        .map(c => c.id);
+
+      if (cards.length === 0) return;
+
+      const deckRef = ref(db, `room/${roomId}/deck`);
+      const abondnedCardsRef = ref(db, `room/${roomId}/abandonedCards`);
+
+      await update(deckRef, {
+        order: cards,
+      });
+      await set(abondnedCardsRef, null);
+    };
+
+    rebuildDeck();
+  }, [room, roomId]);
 
   const { user, loading } = useUser();
 
@@ -355,12 +384,6 @@ export default function Playground() {
     };
   }
 
-  useEffect(() => {
-    if (room?.status === 'ended') {
-      endingManually();
-    }
-  }, [room?.status]);
-
   function getHandForPlayer(room: RoomData, playerId: playerId): NetworkCard[] {
     const map = room.players[playerId]?.handCards;
     return map ? Object.values(map).filter(Boolean) : [];
@@ -383,14 +406,16 @@ export default function Playground() {
     Object.entries(room.players ?? {})
       .filter(Boolean)
       .forEach(([pid, player]) => {
-        Object.values(player.handCards ?? {}).forEach(c => {
-          result.push({
-            id: c.id,
-            owner: pid,
-            state: 'hand',
-            indexInHand: c.indexInHand ?? null,
+        Object.values(player.handCards ?? {})
+          .filter((c): c is NetworkCard => c != null)
+          .forEach(c => {
+            result.push({
+              id: c.id,
+              owner: pid,
+              state: 'hand',
+              indexInHand: c.indexInHand ?? null,
+            });
           });
-        });
       });
 
     if (room.PreviousCard) {
@@ -705,7 +730,7 @@ export default function Playground() {
     const clickedPriority = handMap[logical.id]?.priority;
     if (clickedPriority == null) return console.log('clickedPriority == null');
 
-    const samePriority = handCards.filter(c => c.priority === clickedPriority);
+    let samePriority = handCards.filter(c => c.priority === clickedPriority);
     console.log('🚀 ~ removeHighestCards ~ samePriority:', samePriority);
 
     if (samePriority.length === 0)
@@ -713,9 +738,9 @@ export default function Playground() {
 
     console.log('🚀 ~ removeHighestCards ~ samePriority:', samePriority);
 
-    const newPrev = handMap[logical.id];
+    let newPrev = handMap[logical.id];
 
-    const toCollect = samePriority.filter(c => c.id !== logical.id);
+    let toCollect = samePriority.filter(c => c.id !== logical.id);
 
     const allSamePriority = samePriority.length === handCards.length;
 
@@ -767,8 +792,13 @@ export default function Playground() {
     }
 
     // Remove clicked card from hand
-    updates[`players/${player}/handCards/${newPrev.id}`] = null;
+    if (!allSamePriority)
+      updates[`players/${player}/handCards/${newPrev.id}`] = null;
 
+    if (allSamePriority) {
+      newPrev = samePriority[0];
+      samePriority = samePriority.slice(1);
+    }
     // Set new PreviousCard
     updates.PreviousCard = {
       ...newPrev,
@@ -1098,13 +1128,6 @@ export default function Playground() {
   // kjoijoij
 
   async function newGame() {
-    await update(ref(db, `room/${roomId}`), {
-      status: 'waiting',
-      turnNumber: null,
-      cards: null,
-      deck: null,
-      activePlayer: null,
-    });
     hasDealtRef.current = false;
     // setGameStarted(false);
 
@@ -1112,6 +1135,8 @@ export default function Playground() {
     setPrevCard(undefined);
     setShowModal(false);
     playersOpenedCards.value = 0;
+    await set(ref(db, `room/${roomId}`), null);
+    setGameStarted(false);
   }
 
   const handleCancel = () => {
@@ -1130,21 +1155,62 @@ export default function Playground() {
     setQuitModal(true);
   };
 
+  // const endingManually = async () => {
+  //   setQuitConfirmation(false);
+  //   setQuitModal(false);
+  //   const roomRef = ref(db, `room/${roomId}`);
+
+  //   if (!room) return;
+
+  //   const players = Object.keys(room.players);
+
+  //   const scores = players.map(playerId => {
+  //     const hand = getHandForPlayer(room, playerId);
+
+  //     const score = hand.reduce((sum, c) => {
+  //       const localCard = cards.find(card => card.meta.id === c.id);
+  //       return sum + (localCard?.meta.priority ?? 0);
+  //     }, 0);
+
+  //     return { playerId, score };
+  //   });
+
+  //   const minScore = Math.min(...scores.map(s => s.score));
+
+  //   const winners = scores
+  //     .filter(s => s.score === minScore)
+  //     .map(s => s.playerId);
+
+  //   await update(roomRef, {
+  //     status: 'ended',
+  //     result: {
+  //       winners,
+  //       scores,
+  //       endedAt: Date.now(),
+  //     },
+  //   });
+
+  //   setWinningPlayer(winners.join(' & '));
+  //   playersOpenedCards.value = 0;
+  //   setShowModal(true);
+  //   setCardReleased(false);
+  // };
+
   const endingManually = async () => {
     setQuitConfirmation(false);
     setQuitModal(false);
+
+    if (!room) return;
+    if (room.status === 'ended') return;
+    if (room.hostUid !== user?.uid) return; // 🔒 host-only
+
     const roomRef = ref(db, `room/${roomId}`);
 
-    if (!room || !room?.players || !room?.activePlayer) return;
+    const scores = Object.entries(room.players).map(([playerId, player]) => {
+      const hand = Object.values(player.handCards ?? {}).filter(Boolean);
 
-    const players = Object.keys(room.players);
-
-    const scores = players.map(playerId => {
-      const hand = getHandForPlayer(room, playerId);
-
-      const score = hand.reduce((sum, c) => {
-        const localCard = cards.find(card => card.meta.id === c.id);
-        return sum + (localCard?.meta.priority ?? 0);
+      const score = hand.reduce((sum, card) => {
+        return sum + card.priority;
       }, 0);
 
       return { playerId, score };
@@ -1158,17 +1224,14 @@ export default function Playground() {
 
     await update(roomRef, {
       status: 'ended',
+      activePlayer: null,
       result: {
         winners,
         scores,
+        reason: 'manual-end-lowest-priority-sum',
         endedAt: Date.now(),
       },
     });
-
-    setWinningPlayer(winners.join(' & '));
-    playersOpenedCards.value = 0;
-    setShowModal(true);
-    setCardReleased(false);
   };
 
   useEffect(() => {
