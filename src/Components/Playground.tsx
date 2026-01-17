@@ -210,7 +210,7 @@ export default function Playground() {
     const winners = room.result?.winners;
     if (!winners?.length) return;
 
-    setWinningPlayer(winners.join(' & '));
+    setWinningPlayer(winners);
     setShowModal(true);
   }, [room?.status]);
 
@@ -274,80 +274,6 @@ export default function Playground() {
 
   const handStartX = userPositions;
 
-  // function computeHandTarget(index: number, owner: string) {
-  //   if (owner === 'unset' || !owner) return { x: 0, y: 0 }; // Guard clauseuE
-  //   const indexInHand = parseInt(owner[1]);
-  //   console.log('🚀 ~ computeHandTarget ~ indexInHand:', indexInHand);
-  //   const target = handStartX[indexInHand - 1];
-
-  //   if (!target) return { x: 0, y: 0 }; // Prevent null object access
-  //   if (target) {
-  //     if (playersCount === 2) {
-  //       return {
-  //         x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
-  //         y: target.y + 20,
-  //       };
-  //     } else if (playersCount === 3) {
-  //       if (owner === 'p1') {
-  //         return {
-  //           x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
-  //           y: target.y + 20,
-  //         };
-  //       } else {
-  //         return {
-  //           x: target.x,
-  //           y: (target.y * 3) / 2 + (cardHeight + spreadGap) * index,
-  //         };
-  //       }
-  //     } else if (playersCount === 4) {
-  //       if (owner === 'p1' || owner === 'p3') {
-  //         return {
-  //           x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
-  //           y: target.y + 20,
-  //         };
-  //       } else {
-  //         return {
-  //           x: target.x,
-  //           y: target.y - 40 + (cardHeight + spreadGap) * index,
-  //         };
-  //       }
-  //     } else if (playersCount === 5) {
-  //       if (owner === 'p1') {
-  //         return {
-  //           x: width / 2 - cardWidth * 3 + (cardWidth + spreadGap) * index,
-  //           y: target.y + 20,
-  //         };
-  //       } else if (owner === 'p3' || owner === 'p4') {
-  //         return {
-  //           x: owner === 'p3' ? target.x - 30 : target.x + 30,
-  //           y: target.y + 20 + (cardHeight + spreadGap) * index,
-  //         };
-  //       } else {
-  //         return {
-  //           x: owner === 'p2' ? target.x - 20 : target.x + 20,
-  //           y: target.y - 40 + (cardHeight + spreadGap) * index,
-  //         };
-  //       }
-  //     } else if (playersCount === 6) {
-  //       if (owner === 'p1' || owner === 'p4') {
-  //         return {
-  //           x: width / 2 - cardWidth * 3 + (cardWidth + spreadGap) * index,
-  //           y: owner === 'p1' ? target.y + 20 : target.y + 40,
-  //         };
-  //       } else if (owner === 'p3' || owner === 'p5') {
-  //         return {
-  //           x: owner === 'p3' ? target.x - 30 : target.x + 30,
-  //           y: target.y - 40 + (cardHeight + spreadGap) * index,
-  //         };
-  //       } else {
-  //         return {
-  //           x: owner === 'p2' ? target.x - 30 : target.x + 30,
-  //           y: target.y - 80 + (cardHeight + spreadGap) * index,
-  //         };
-  //       }
-  //     }
-  //   }
-  // }
 
   function getNextHandIndex(handCards: NetworkCard[]): number {
     if (handCards.length === 0) return 0;
@@ -355,19 +281,6 @@ export default function Playground() {
     return Math.max(...handCards.map(c => c.indexInHand ?? -1)) + 1;
   }
 
-  // function computeHandTarget(index: number, owner: string) {
-  //   if (!owner || owner === 'unset') return null;
-
-  //   const playerIndex = Number(owner.slice(1)) - 1;
-  //   const anchor = handStartX[playerIndex];
-
-  //   if (!anchor) return null;
-
-  //   return {
-  //     x: (cardWidth * 4) / 2 + (cardWidth + spreadGap) * index,
-  //     y: anchor.y + 20,
-  //   };
-  // }
 
   const HAND_START_X = (cardWidth * 4) / 2;
 
@@ -593,7 +506,7 @@ export default function Playground() {
   }, [room, user]);
 
   const ReleaseOneMoreCard = async () => {
-    if (cardSent) return console.log('[Release] One card already sent');
+    setCardSent(true);
 
     if (!room || !room.deck?.order || !room.activePlayer) {
       console.log('[Release] Room not ready');
@@ -637,12 +550,10 @@ export default function Playground() {
     };
 
     await update(ref(db, `room/${roomId}`), updates);
-
-    setCardSent(true);
   };
 
   const ReleasePrevCard = async () => {
-    if (cardSent) return console.log('[ReleasePrev] One card already sent');
+    setCardSent(true);
 
     if (!room || !room.activePlayer || !myPlayerId) return;
 
@@ -688,24 +599,33 @@ export default function Playground() {
     await update(ref(db, `room/${roomId}`), updates);
 
     setPrevCard(undefined);
-    setCardSent(true);
   };
 
   const removeHighestCards = async (card: CardData, player: playerId) => {
+    setCardSent(false);
+
     if (!room || !room.activePlayer) {
       console.log('room not ready');
+      setCardSent(true);
       return;
     }
-    if (room?.status === 'ended') return;
+    if (room?.status === 'ended') {
+      setCardSent(true);
+      return;
+    }
 
-    if (!cardSent)
-      return console.log('[first take a card from deck or previous ards');
+    // if (!cardSent)
+    //   return console.log('[first take a card from deck or previous ards');
 
     const logical = logicalCards.find(c => c.id === card.meta.id);
-    if (!logical) return;
+    if (!logical) {
+      setCardSent(true);
+      return;
+    }
 
     if (logical.owner !== player) {
       Alert.alert('Invalid Move', 'This card does not belong to you');
+      setCardSent(true);
       return;
     }
 
@@ -722,27 +642,44 @@ export default function Playground() {
         'Invalid Move',
         'You cannot send the card you just picked from previous.',
       );
+      setCardSent(true);
       return;
     }
 
     console.log('passed blockers');
 
     const clickedPriority = handMap[logical.id]?.priority;
-    if (clickedPriority == null) return console.log('clickedPriority == null');
+    if (clickedPriority == null) {
+      console.log('clickedPriority == null');
+      setCardSent(true);
+      return;
+    }
 
     let samePriority = handCards.filter(c => c.priority === clickedPriority);
     console.log('🚀 ~ removeHighestCards ~ samePriority:', samePriority);
 
-    if (samePriority.length === 0)
-      return console.log('samePriority.length === 0');
+    if (samePriority.length === 0) {
+      console.log('samePriority.length === 0');
+      setCardSent(true);
+      return;
+    }
 
     console.log('🚀 ~ removeHighestCards ~ samePriority:', samePriority);
 
-    let newPrev = handMap[logical.id];
-
-    let toCollect = samePriority.filter(c => c.id !== logical.id);
-
     const allSamePriority = samePriority.length === handCards.length;
+
+    let newPrev: NetworkCard;
+    let toCollect: NetworkCard[];
+
+    if (allSamePriority) {
+      const others = samePriority.filter(c => c.id !== logical.id);
+
+      newPrev = others[0];
+      toCollect = others.slice(1);
+    } else {
+      newPrev = handMap[logical.id];
+      toCollect = samePriority.filter(c => c.id !== logical.id);
+    }
 
     if (
       lock &&
@@ -751,6 +688,7 @@ export default function Playground() {
       lock.blockedPriority === handMap[logical.id]?.priority
     ) {
       Alert.alert('Invalid Move', 'You cannot send this priority level yet.');
+      setCardSent(true);
       return;
     }
 
@@ -774,7 +712,7 @@ export default function Playground() {
     if (didPlayerWin) {
       updates.status = 'ended';
       updates.result = {
-        winners: [player],
+        winners: player,
         reason: 'empty-hand',
         endedAt: Date.now(),
       };
@@ -843,8 +781,6 @@ export default function Playground() {
 
     const abondnedCards = cards.filter(c => c.state.value === 'collected');
     console.log('🚀 ~ removeHighestCards ~ abondnedCards:', abondnedCards);
-
-    setCardSent(false);
   };
 
   const getWinner = (clickedPlayer: playerId): playerId | undefined => {
@@ -1084,7 +1020,7 @@ export default function Playground() {
     .maxDuration(250)
     .runOnJS(true)
     .onStart(async event => {
-      if(gameEnded) setGameStarted(false)
+      if (gameEnded && room?.status === 'ended') setGameStarted(false);
       if (room?.status === 'ended') return;
 
       for (let i = cards.length - 1; i >= 0; i--) {
@@ -1102,6 +1038,10 @@ export default function Playground() {
             Alert.alert('Not your turn');
             return;
           }
+          if (cardSent) {
+            console.log('[Release] One card already sent');
+            return;
+          }
 
           await ReleaseOneMoreCard();
           return;
@@ -1110,6 +1050,10 @@ export default function Playground() {
         if (logical.state === 'prevcard') {
           if (room.activePlayer !== myPlayerId) {
             Alert.alert('Not your turn');
+            return;
+          }
+          if (cardSent) {
+            console.log('[ReleasePrev] One card already sent');
             return;
           }
 
@@ -1125,6 +1069,10 @@ export default function Playground() {
 
           if (logical.owner !== myPlayerId) {
             Alert.alert('This is not your card');
+            return;
+          }
+          if (!cardSent) {
+            console.log('[first take a card from deck or previous ards');
             return;
           }
 
@@ -1311,7 +1259,10 @@ export default function Playground() {
           button2="Quit"
           onClose={() => setShowQuitModal(false)}
           onProceed={async () => {
-            if (!room || !myPlayerId) return;
+            if (!room || !myPlayerId) {
+              console.log('room or player id does not exist');
+              return;
+            }
 
             const winner = getWinner(myPlayerId);
             if (!winner) return;

@@ -32,7 +32,7 @@ export type RoomData = {
   PreviousCard?: NetworkCard;
 
   result?: {
-    winners: string[];
+    winners: string;
     reason: 'empty-hand' | 'manual-end';
     endedAt: number;
     endedBy?:string;
