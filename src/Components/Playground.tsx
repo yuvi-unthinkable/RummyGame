@@ -718,7 +718,7 @@ export default function Playground() {
     }
 
     let samePriority = handCards.filter(c => c.priority === clickedPriority);
-    console.log('🚀 ~ removeHighestCards ~ samePriority:', samePriority);
+    console.log('🚀 ~ HighestCards ~ samePriority:', samePriority);
 
     if (samePriority.length === 0) {
       console.log('samePriority.length === 0');
@@ -733,25 +733,29 @@ export default function Playground() {
     let newPrev: NetworkCard;
     let toCollect: NetworkCard[];
 
-    if (allSamePriority && lock) {
-      const others = samePriority.filter(c => c.id !== logical.id);
+    const lockedId = lock && currentTurn <= lock.untilTurn ? lock.id : null;
 
-      newPrev = others[0];
-      toCollect = others.slice(1);
+    if (allSamePriority && lockedId) {
+      const availableToSend = samePriority.filter(c => c.id !== lockedId);
+
+      if (availableToSend.length === 0) {
+        Alert.alert('Invalid Move', 'You must keep the card you just picked.');
+        setCardSent(true);
+        return;
+      }
+
+      const userClickedValid = availableToSend.some(c => c.id === logical.id);
+
+      if (userClickedValid) {
+        newPrev = handMap[logical.id];
+        toCollect = availableToSend.filter(c => c.id !== logical.id);
+      } else {
+        newPrev = availableToSend[0];
+        toCollect = availableToSend.slice(1);
+      }
     } else {
       newPrev = handMap[logical.id];
       toCollect = samePriority.filter(c => c.id !== logical.id);
-    }
-
-    if (
-      lock &&
-      currentTurn <= lock.untilTurn &&
-      !allSamePriority &&
-      lock.blockedPriority === handMap[logical.id]?.priority
-    ) {
-      Alert.alert('Invalid Move', 'You cannot send this priority level yet.');
-      setCardSent(true);
-      return;
     }
 
     // if (room.PreviousCard) {
@@ -1165,7 +1169,7 @@ export default function Playground() {
       const created = await createRoom(user.uid, roomId, totalPlayers);
       if (created) {
         setCreateRoomModal(false);
-        joinRoomFunction(roomId)
+        joinRoomFunction(roomId);
         // Alert.alert('Sucess', 'Created Room sucessfully');
       }
     }
@@ -1252,7 +1256,7 @@ export default function Playground() {
   }, [roomId, user]);
 
   // console.log('room>>>>>>>>>>>>>>..', room);
-  console.log('CreateRoomModal>>>>>>>>>>>>>>>>>>', CreateRoomModal);
+  // console.log('CreateRoomModal>>>>>>>>>>>>>>>>>>', CreateRoomModal);
 
   return (
     <View style={{ width: width, height: height, backgroundColor: '#1e1e1e' }}>
