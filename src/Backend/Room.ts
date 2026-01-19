@@ -2,6 +2,7 @@ import { getDatabase, ref, update } from '@react-native-firebase/database';
 import { database } from '../context/Firebase';
 import { getRoomSnap, UpdateRoomData } from '../services/db.service';
 import { NetworkCard } from './useGameStarted';
+import { Alert } from 'react-native';
 
 export type TurnLock = {
   id: number;
@@ -35,7 +36,7 @@ export type RoomData = {
     winners: string;
     reason: 'empty-hand' | 'manual-end';
     endedAt: number;
-    endedBy?:string;
+    endedBy?: string;
   };
 };
 
@@ -49,25 +50,35 @@ export type Player = {
 const currentTimeString = new Date().toLocaleTimeString();
 
 const room1 = {
-  roomId: 123456,
-  playerCount: 2,
+  // roomId: 123456,
   createdAt: currentTimeString,
   status: 'waiting',
   // cards: [],
 };
 
-export async function createRoom(uid: string) {
+export async function createRoom(
+  uid: string,
+  roomId: number,
+  playersCount: number,
+): Promise<boolean> {
   const roomObj: RoomData = {
-    roomId: room1.roomId,
-    playerCount: room1.playerCount,
+    roomId,
+    playerCount: playersCount,
     hostUid: uid,
     createdAt: currentTimeString,
     status: 'waiting',
     players: {},
   };
 
-  await UpdateRoomData(roomObj.roomId, roomObj);
+  try {
+    await UpdateRoomData(roomId, roomObj);
+    return true;
+  } catch (error) {
+    console.error('createRoom error:', error);
+    return false;
+  }
 }
+
 export const JoinRoom = async (roomId: number, uid: string) => {
   const db = getDatabase();
   console.log('Joining room:', roomId);
@@ -76,7 +87,10 @@ export const JoinRoom = async (roomId: number, uid: string) => {
 
   if (roomData === null) {
     console.error('Room does not exist');
-    return { PlayerQty: 0, startGame: false };
+    return {
+        gameStart: false,
+      playerCount: 0,
+    };
   }
 
   const players = roomData.players ?? {};
@@ -88,9 +102,8 @@ export const JoinRoom = async (roomId: number, uid: string) => {
   if (existingEntry) {
     console.log('user already joined');
     return {
-      PlayerQty: Object.keys(players).length,
-      startGame: roomData.status === 'playing',
-      myPosition: existingEntry[0],
+        gameStart: true,
+      playerCount: roomData.playerCount,
     };
   }
 
@@ -120,14 +133,21 @@ export const JoinRoom = async (roomId: number, uid: string) => {
 
   const roomRef = ref(db, `room/${roomId}`);
 
-  await update(roomRef, {
-    players: updatedPlayers,
-    status: newStatus,
-  });
+  try {
+    await update(roomRef, {
+      players: updatedPlayers,
+      status: newStatus,
+    });
+    return {
+        gameStart: true,
+      playerCount: roomData.playerCount,
+    };
+  } catch (error) {
+    console.log('🚀 ~ JoinRoom ~ error:', error);
 
-  return {
-    PlayerQty: Object.keys(updatedPlayers).length,
-    startGame: newStatus === 'playing',
-    myPosition: position,
-  };
+    return {
+      gameStart: false,
+      playerCount: 0,
+    };
+  }
 };

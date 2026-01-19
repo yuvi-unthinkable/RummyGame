@@ -51,6 +51,9 @@ import {
   set,
 } from '@react-native-firebase/database';
 import { getApp } from '@react-native-firebase/app';
+import CreateGameModal from './CreateGameRoomModal';
+import CreateGameRoomModal from './CreateGameRoomModal';
+import JoinGameRoomModal from './JoinGameRoomModal';
 
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -89,14 +92,6 @@ type LogicalCard = {
   indexInHand: number | null;
 };
 
-const data = [
-  { label: '2 Players', value: 2 },
-  { label: '3 Players', value: 3 },
-  { label: '4 Players', value: 4 },
-  { label: '5 Players', value: 5 },
-  { label: '6 Players', value: 6 },
-];
-
 type Positions = {
   x: number;
   y: number;
@@ -126,9 +121,11 @@ export default function Playground() {
   });
 
   const [showModal, setShowModal] = useState(false);
+  const [CreateRoomModal, setCreateRoomModal] = useState(false);
+  const [JoinRoomModal, setJoinRoomModal] = useState(false);
   const [activeDeck, setactiveDeck] = useState(false);
   const [playersCount, setPlayersCount] = useState(2);
-  const [roomId, setRoomId] = useState(123456);
+  const [roomId, setRoomId] = useState(0);
   const [gameEnded, setGameEnded] = useState(false);
   const [gameRoomData, setGameRoomData] = useState<RoomData | null>(null);
   const [deckFlattened, setdeckFlattened] = useState(false);
@@ -274,27 +271,86 @@ export default function Playground() {
 
   const handStartX = userPositions;
 
-
   function getNextHandIndex(handCards: NetworkCard[]): number {
     if (handCards.length === 0) return 0;
 
     return Math.max(...handCards.map(c => c.indexInHand ?? -1)) + 1;
   }
 
-
   const HAND_START_X = (cardWidth * 4) / 2;
 
-  function computeHandTarget(index: number, owner: string) {
-    if (!owner || owner === 'unset') return null;
-
-    const playerIndex = Number(owner.slice(1)) - 1;
-    const anchor = handStartX[playerIndex];
-    if (!anchor) return null;
-
-    return {
-      x: HAND_START_X + index * (cardWidth + spreadGap),
-      y: anchor.y + 20,
-    };
+function computeHandTarget(index: number, owner: string) {
+    if (owner === 'unset' || !owner) return { x: 0, y: 0 }; // Guard clauseuE
+    const indexInHand = parseInt(owner[1]);
+    console.log('🚀 ~ computeHandTarget ~ indexInHand:', indexInHand);
+    const target = handStartX[indexInHand - 1];
+    if (!target) return { x: 0, y: 0 }; // Prevent null object access
+    if (target) {
+      if (playersCount === 2) {
+        return {
+          x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
+          y: target.y + 20,
+        };
+      } else if (playersCount === 3) {
+        if (owner === 'p1') {
+          return {
+            x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
+            y: target.y + 20,
+          };
+        } else {
+          return {
+            x: target.x,
+            y: (target.y * 3) / 2 + (cardHeight + spreadGap) * index,
+          };
+        }
+      } else if (playersCount === 4) {
+        if (owner === 'p1' || owner === 'p3') {
+          return {
+            x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
+            y: target.y + 20,
+          };
+        } else {
+          return {
+            x: target.x,
+            y: target.y - 40 + (cardHeight + spreadGap) * index,
+          };
+        }
+      } else if (playersCount === 5) {
+        if (owner === 'p1') {
+          return {
+            x: width / 2 - cardWidth * 3 + (cardWidth + spreadGap) * index,
+            y: target.y + 20,
+          };
+        } else if (owner === 'p3' || owner === 'p4') {
+          return {
+            x: owner === 'p3' ? target.x - 30 : target.x + 30,
+            y: target.y + 20 + (cardHeight + spreadGap) * index,
+          };
+        } else {
+          return {
+            x: owner === 'p2' ? target.x - 20 : target.x + 20,
+            y: target.y - 40 + (cardHeight + spreadGap) * index,
+          };
+        }
+      } else if (playersCount === 6) {
+        if (owner === 'p1' || owner === 'p4') {
+          return {
+            x: width / 2 - cardWidth * 3 + (cardWidth + spreadGap) * index,
+            y: owner === 'p1' ? target.y + 20 : target.y + 40,
+          };
+        } else if (owner === 'p3' || owner === 'p5') {
+          return {
+            x: owner === 'p3' ? target.x - 30 : target.x + 30,
+            y: target.y - 40 + (cardHeight + spreadGap) * index,
+          };
+        } else {
+          return {
+            x: owner === 'p2' ? target.x - 30 : target.x + 30,
+            y: target.y - 80 + (cardHeight + spreadGap) * index,
+          };
+        }
+      }
+    }
   }
 
   function getHandForPlayer(room: RoomData, playerId: playerId): NetworkCard[] {
@@ -614,9 +670,6 @@ export default function Playground() {
       return;
     }
 
-    // if (!cardSent)
-    //   return console.log('[first take a card from deck or previous ards');
-
     const logical = logicalCards.find(c => c.id === card.meta.id);
     if (!logical) {
       setCardSent(true);
@@ -671,7 +724,7 @@ export default function Playground() {
     let newPrev: NetworkCard;
     let toCollect: NetworkCard[];
 
-    if (allSamePriority) {
+    if (allSamePriority && lock) {
       const others = samePriority.filter(c => c.id !== logical.id);
 
       newPrev = others[0];
@@ -733,10 +786,11 @@ export default function Playground() {
     if (!allSamePriority)
       updates[`players/${player}/handCards/${newPrev.id}`] = null;
 
-    if (allSamePriority) {
-      newPrev = samePriority[0];
-      samePriority = samePriority.slice(1);
-    }
+    // if (allSamePriority) {
+    //   newPrev = samePriority[0];
+    //   samePriority = samePriority.slice(1);
+    // }
+
     // Set new PreviousCard
     updates.PreviousCard = {
       ...newPrev,
@@ -1097,6 +1151,30 @@ export default function Playground() {
 
   // kjoijoij
 
+  async function createRoomFunction(roomId: number, totalPlayers: number) {
+    setPlayersCount(totalPlayers);
+    setRoomId(roomId);
+    if (user?.uid) {
+      const created = await createRoom(user.uid, roomId, totalPlayers);
+      if (created) {
+        setCreateRoomModal(false);
+        Alert.alert('Sucess', 'Created Room sucessfully');
+      }
+    }
+  }
+  async function joinRoomFunction(roomId: number) {
+    setRoomId(roomId);
+    if (user?.uid) {
+      const result = await JoinRoom(roomId, user.uid);
+
+      if (result.gameStart) {
+        setJoinRoomModal(false);
+        setPlayersCount(result.playerCount)
+        Alert.alert('Sucess', 'Joined Room sucessfully');
+      }
+    }
+  }
+
   async function newGame() {
     hasDealtRef.current = false;
     // setGameStarted(false);
@@ -1120,84 +1198,7 @@ export default function Playground() {
 
   const confirmQuit = async () => {};
 
-  // const endingManually = async () => {
-  //   setQuitConfirmation(false);
-  //   setQuitModal(false);
-  //   const roomRef = ref(db, `room/${roomId}`);
-
-  //   if (!room) return;
-
-  //   const players = Object.keys(room.players);
-
-  //   const scores = players.map(playerId => {
-  //     const hand = getHandForPlayer(room, playerId);
-
-  //     const score = hand.reduce((sum, c) => {
-  //       const localCard = cards.find(card => card.meta.id === c.id);
-  //       return sum + (localCard?.meta.priority ?? 0);
-  //     }, 0);
-
-  //     return { playerId, score };
-  //   });
-
-  //   const minScore = Math.min(...scores.map(s => s.score));
-
-  //   const winners = scores
-  //     .filter(s => s.score === minScore)
-  //     .map(s => s.playerId);
-
-  //   await update(roomRef, {
-  //     status: 'ended',
-  //     result: {
-  //       winners,
-  //       scores,
-  //       endedAt: Date.now(),
-  //     },
-  //   });
-
-  //   setWinningPlayer(winners.join(' & '));
-  //   playersOpenedCards.value = 0;
-  //   setShowModal(true);
-  //   setCardReleased(false);
-  // };
-
-  // const endingManually = async () => {
-  //   if (!room) return;
-  //   if (room.status === 'ended') return;
-  //   if (room.hostUid !== user?.uid) return; // 🔒 host-only
-
-  //   const roomRef = ref(db, `room/${roomId}`);
-
-  //   const scores = Object.entries(room.players).map(([playerId, player]) => {
-  //     const hand = Object.values(player.handCards ?? {}).filter(Boolean);
-
-  //     const score = hand.reduce((sum, card) => {
-  //       return sum + card.priority;
-  //     }, 0);
-
-  //     return { playerId, score };
-  //   });
-
-  //   const minScore = Math.min(...scores.map(s => s.score));
-
-  //   const winners = scores
-  //     .filter(s => s.score === minScore)
-  //     .map(s => s.playerId);
-
-  //   await update(roomRef, {
-  //     status: 'ended',
-  //     activePlayer: null,
-  //     result: {
-  //       winners,
-  //       scores,
-  //       reason: 'manual-end-lowest-priority-sum',
-  //       endedAt: Date.now(),
-  //     },
-  //   });
-  // };
-
   useEffect(() => {
-    // console.log('🚀 ~ Playground ~ roomId:', roomId);
     if (!roomId) return;
 
     const roomRef = ref(db, `room/${roomId}`);
@@ -1205,14 +1206,8 @@ export default function Playground() {
     const unsubscribe = onValue(roomRef, snapshot => {
       const roomData = snapshot.val();
 
-      // console.log(
-      //   'updating>>>>>>>>>>>>>>>>>',
-      //   snapshot.exists(),
-      //   snapshot.val(),
-      // );
-
-      // console.log('🚀 ~ Playground ~ roomData:', roomData);
       if (roomData) {
+        // setPlayersCount(roomData.playersCount);
         const playerCount = roomData.players
           ? Object.keys(roomData.players).length
           : 0;
@@ -1224,12 +1219,15 @@ export default function Playground() {
           !hasDealtRef.current &&
           playerCount === roomData.playerCount
         ) {
+          setPlayersCount(roomData.playerCount)
           console.log('Host initiating deal...');
           setdeckFlattened(true);
           hasDealtRef.current = false;
 
           prevStateRef.current = {};
           prevIndexRef.current = {};
+          setJoinRoomModal(false);
+          setCreateRoomModal(false);
           dealCardsHostOnly(roomId, roomData, roomRef);
         }
 
@@ -1246,10 +1244,12 @@ export default function Playground() {
   }, [roomId, user]);
 
   // console.log('room>>>>>>>>>>>>>>..', room);
+  console.log('CreateRoomModal>>>>>>>>>>>>>>>>>>', CreateRoomModal);
 
   return (
     <View style={{ width: width, height: height, backgroundColor: '#1e1e1e' }}>
       {/* --- MODALS --- */}
+
       {showQuitModal && (
         <EndModal
           visible={showQuitModal}
@@ -1300,6 +1300,31 @@ export default function Playground() {
         />
       )}
 
+      {CreateRoomModal && (
+        <CreateGameRoomModal
+          visible={CreateRoomModal}
+          player={winningPlayer}
+          onClose={() => setCreateRoomModal(false)}
+          onProceed={(roomId, totalPlayers) =>
+            createRoomFunction(roomId, totalPlayers)
+          }
+          heading={'Create Room'}
+          button1="Cancel"
+          button2="Create"
+        />
+      )}
+      {JoinRoomModal && (
+        <JoinGameRoomModal
+          visible={JoinRoomModal}
+          player={winningPlayer}
+          onClose={() => setJoinRoomModal(false)}
+          onProceed={roomId => joinRoomFunction(roomId)}
+          heading={'Join Room'}
+          button1="Cancel"
+          button2="Join"
+        />
+      )}
+￼
       {/* --- LOBBY VIEW --- */}
       {!gameStarted ? (
         <View
@@ -1311,46 +1336,20 @@ export default function Playground() {
             borderWidth: 2,
           }}
         >
-          <View>
-            <TextInput
-              value={roomId?.toString()}
-              onChangeText={text => {
-                const numericValue = text.replace(/[^0-9]/g, '');
-                setRoomId(numericValue ? parseInt(numericValue, 10) : 0);
-              }}
-              keyboardType="numeric"
-              placeholderTextColor="#888"
-              placeholder="Enter Room ID"
-              style={{
-                color: '#fff',
-                backgroundColor: '#2f2f31ff',
-                width: 200,
-                padding: 10,
-                marginBottom: 20,
-                borderRadius: 8,
-              }}
-            />
-          </View>
-
           <View style={{ gap: 10 }}>
             <GameButton
               title="Join Room"
               onPress={async () => {
-                if (user?.uid) {
-                  const result = await JoinRoom(roomId, user.uid);
-                  if (result.startGame) {
-                    console.log('joined the room');
-                    setPlayersCount(result.PlayerQty);
-                  }
-                }
+                console.log(JoinRoomModal);
+                setJoinRoomModal(true);
               }}
             />
 
             <GameButton
               title="Create Room"
-              onPress={async () => {
-                if (user?.uid) await createRoom(user.uid);
-                console.log('created the room');
+              onPress={() => {
+                console.log(CreateRoomModal);
+                setCreateRoomModal(true);
               }}
             />
           </View>

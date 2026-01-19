@@ -22,6 +22,7 @@ export default function EndModal({
   button1,
   button2,
 }: endModalProps) {
+  
   console.log('called reached to the component');
 
   return (

@@ -149,5 +149,7 @@ export async function UpdateCardData(
 
 export async function UpdateRoomData(roomId: number, room: RoomData) {
   const roomRef = ref(db, `room/${roomId}`);
-  await set(roomRef, room);
+  await set(roomRef, room).finally(() => {
+    return true;
+  });
 }
