@@ -54,6 +54,7 @@ import { getApp } from '@react-native-firebase/app';
 import CreateGameModal from './CreateGameRoomModal';
 import CreateGameRoomModal from './CreateGameRoomModal';
 import JoinGameRoomModal from './JoinGameRoomModal';
+import WaitingModal from './WaitingModal';
 
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -123,6 +124,7 @@ export default function Playground() {
   const [showModal, setShowModal] = useState(false);
   const [CreateRoomModal, setCreateRoomModal] = useState(false);
   const [JoinRoomModal, setJoinRoomModal] = useState(false);
+  const [WaitingRoomModal, setWaitingRoomModal] = useState(false);
   const [activeDeck, setactiveDeck] = useState(false);
   const [playersCount, setPlayersCount] = useState(2);
   const [roomId, setRoomId] = useState(0);
@@ -200,8 +202,12 @@ export default function Playground() {
   const db = getDatabase(getApp());
 
   useEffect(() => {
+    if (room?.status === 'waiting') {
+      setWaitingRoomModal(true);
+    }
     if (room?.status === 'playing') {
       setGameStarted(true);
+      setWaitingRoomModal(false);
     } else if (room?.status !== 'ended') return;
 
     const winners = room.result?.winners;
@@ -279,7 +285,7 @@ export default function Playground() {
 
   const HAND_START_X = (cardWidth * 4) / 2;
 
-function computeHandTarget(index: number, owner: string) {
+  function computeHandTarget(index: number, owner: string) {
     if (owner === 'unset' || !owner) return { x: 0, y: 0 }; // Guard clauseuE
     const indexInHand = parseInt(owner[1]);
     console.log('🚀 ~ computeHandTarget ~ indexInHand:', indexInHand);
@@ -1169,7 +1175,7 @@ function computeHandTarget(index: number, owner: string) {
 
       if (result.gameStart) {
         setJoinRoomModal(false);
-        setPlayersCount(result.playerCount)
+        setPlayersCount(result.playerCount);
         Alert.alert('Sucess', 'Joined Room sucessfully');
       }
     }
@@ -1219,7 +1225,7 @@ function computeHandTarget(index: number, owner: string) {
           !hasDealtRef.current &&
           playerCount === roomData.playerCount
         ) {
-          setPlayersCount(roomData.playerCount)
+          setPlayersCount(roomData.playerCount);
           console.log('Host initiating deal...');
           setdeckFlattened(true);
           hasDealtRef.current = false;
@@ -1249,7 +1255,6 @@ function computeHandTarget(index: number, owner: string) {
   return (
     <View style={{ width: width, height: height, backgroundColor: '#1e1e1e' }}>
       {/* --- MODALS --- */}
-
       {showQuitModal && (
         <EndModal
           visible={showQuitModal}
@@ -1282,7 +1287,6 @@ function computeHandTarget(index: number, owner: string) {
           }}
         />
       )}
-
       {winningPlayer && (
         <EndModal
           visible={showModal}
@@ -1299,7 +1303,6 @@ function computeHandTarget(index: number, owner: string) {
           button2="New Game"
         />
       )}
-
       {CreateRoomModal && (
         <CreateGameRoomModal
           visible={CreateRoomModal}
@@ -1324,8 +1327,16 @@ function computeHandTarget(index: number, owner: string) {
           button2="Join"
         />
       )}
-￼
-      {/* --- LOBBY VIEW --- */}
+      {WaitingRoomModal && (
+        <WaitingModal
+          visible={WaitingRoomModal}
+          onClose={() => setWaitingRoomModal(false)}
+          heading={'Join Room'}
+          button1="Cancel"
+          button2="Join"
+        />
+      )}
+      ￼{/* --- LOBBY VIEW --- */}
       {!gameStarted ? (
         <View
           style={{

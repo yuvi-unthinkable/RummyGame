@@ -19,14 +19,6 @@ type JoinGameRoomModalProps = {
   button2: string;
 };
 
-const data = [
-  { label: '2 Players', value: 2 },
-  { label: '3 Players', value: 3 },
-  { label: '4 Players', value: 4 },
-  { label: '5 Players', value: 5 },
-  { label: '6 Players', value: 6 },
-];
-
 export default function JoinGameRoomModal({
   visible,
   onClose,
