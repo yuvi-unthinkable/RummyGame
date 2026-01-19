@@ -676,6 +676,9 @@ export default function Playground() {
       return;
     }
 
+    // if (!cardSent)
+    //   return console.log('[first take a card from deck or previous ards');
+
     const logical = logicalCards.find(c => c.id === card.meta.id);
     if (!logical) {
       setCardSent(true);
@@ -792,11 +795,10 @@ export default function Playground() {
     if (!allSamePriority)
       updates[`players/${player}/handCards/${newPrev.id}`] = null;
 
-    // if (allSamePriority) {
-    //   newPrev = samePriority[0];
-    //   samePriority = samePriority.slice(1);
-    // }
-
+    if (allSamePriority) {
+      newPrev = samePriority[0];
+      samePriority = samePriority.slice(1);
+    }
     // Set new PreviousCard
     updates.PreviousCard = {
       ...newPrev,
@@ -842,7 +844,6 @@ export default function Playground() {
     const abondnedCards = cards.filter(c => c.state.value === 'collected');
     console.log('🚀 ~ removeHighestCards ~ abondnedCards:', abondnedCards);
   };
-
   const getWinner = (clickedPlayer: playerId): playerId | undefined => {
     if (!room) return;
 
@@ -1164,7 +1165,8 @@ export default function Playground() {
       const created = await createRoom(user.uid, roomId, totalPlayers);
       if (created) {
         setCreateRoomModal(false);
-        Alert.alert('Sucess', 'Created Room sucessfully');
+        joinRoomFunction(roomId)
+        // Alert.alert('Sucess', 'Created Room sucessfully');
       }
     }
   }
@@ -1176,7 +1178,7 @@ export default function Playground() {
       if (result.gameStart) {
         setJoinRoomModal(false);
         setPlayersCount(result.playerCount);
-        Alert.alert('Sucess', 'Joined Room sucessfully');
+        // Alert.alert('Sucess', 'Joined Room sucessfully');
       }
     }
   }
@@ -1343,7 +1345,7 @@ export default function Playground() {
             flex: 1,
             justifyContent: 'center',
             alignItems: 'center',
-            borderColor: '#fdd702ff',
+            borderColor: '#22c55e',
             borderWidth: 2,
           }}
         >
@@ -1467,7 +1469,7 @@ export default function Playground() {
               }}
             >
               <GameButton
-                title="End Turn"
+                title="End Game"
                 danger
                 onPress={() => {
                   if (!myPlayerId) return;
