@@ -31,9 +31,6 @@ export function useGameStarted(
 
   const db = getDatabase();
 
-  /**
-   * 1️⃣ SharedValues — created ONCE per device
-   */
   const cardSharedValues = useMemo(() => {
     return Array.from({ length: 52 }).map(() => ({
       x: makeMutable(deckX),
@@ -49,9 +46,23 @@ export function useGameStarted(
     }));
   }, [deckX, deckY]);
 
-  /**
-   * 2️⃣ Card objects — ALWAYS CREATED
-   */
+  useEffect(() => {
+    if (!gameStarted) {
+      cardSharedValues.forEach(shared => {
+        shared.x.value = deckX;
+        shared.y.value = deckY;
+        shared.state.value = 'deck';
+        shared.faceup.value = false;
+        shared.owner.value = 'unset';
+        shared.indexInHand.value = null;
+
+        shared.playerTarget.value = { x: 0, y: 0 };
+        shared.handTarget.value = { x: 0, y: 0 };
+        shared.showTarget.value = { x: 0, y: 0 };
+      });
+    }
+  }, [gameStarted, roomId, deckX, deckY]);
+
   const cards: CardData[] = useMemo(() => {
     if (!cardDeck.length) return [];
 
@@ -74,9 +85,6 @@ export function useGameStarted(
     });
   }, [cardDeck, cardSharedValues]);
 
-  /**
-   * 3️⃣ Firebase → SharedValue hydration
-   */
   useEffect(() => {
     if (!roomId || !cards.length) return;
 

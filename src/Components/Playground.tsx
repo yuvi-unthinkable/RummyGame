@@ -108,24 +108,14 @@ export default function Playground() {
   const [gamePhase, setGamePhase] = useState<'idle' | 'dealing' | 'settled'>(
     'idle',
   );
-  const activePlayer = useSharedValue<playerId>('p1');
-  const [activePlayerJs, setActivePlayerJs] = useState<playerId>('p1');
   const [winningPlayer, setWinningPlayer] = useState<playerId>();
 
-  const [previosCardReleased, setPreviosCardReleased] = useState(false);
-  const [cardReleased, setCardReleased] = useState(false);
-  const [sendCard, setSendCard] = useState(true);
   const cardsOnTableCount = useSharedValue(0);
-  const [endButtonVisible, setEndButtonVisible] = useState<EndButtonVisible>({
-    p1: true,
-    p2: true,
-  });
 
   const [showModal, setShowModal] = useState(false);
   const [CreateRoomModal, setCreateRoomModal] = useState(false);
   const [JoinRoomModal, setJoinRoomModal] = useState(false);
   const [WaitingRoomModal, setWaitingRoomModal] = useState(false);
-  const [activeDeck, setactiveDeck] = useState(false);
   const [playersCount, setPlayersCount] = useState(2);
   const [roomId, setRoomId] = useState(0);
   const [gameEnded, setGameEnded] = useState(false);
@@ -134,16 +124,7 @@ export default function Playground() {
   const [myId, setMyId] = useState('');
   const [showQuitModal, setShowQuitModal] = useState(false);
 
-  const [prevCardReleased, setprevCardReleased] = useState<CardData | null>(
-    null,
-  );
-
   const [gameStarted, setGameStarted] = useState(false);
-
-  const lastAppliedTurnRef = useRef<number | null>(null);
-  const hasInitializedFromRoomRef = useRef(false);
-
-  const navigation = useNavigation<NavigationProp>();
 
   const [cardSent, setCardSent] = useState(false);
 
@@ -288,7 +269,7 @@ export default function Playground() {
   function computeHandTarget(index: number, owner: string) {
     if (owner === 'unset' || !owner) return { x: 0, y: 0 }; // Guard clauseuE
     const indexInHand = parseInt(owner[1]);
-    console.log('🚀 ~ computeHandTarget ~ indexInHand:', indexInHand);
+    // console.log('🚀 ~ computeHandTarget ~ indexInHand:', indexInHand);
     const target = handStartX[indexInHand - 1];
     if (!target) return { x: 0, y: 0 }; // Prevent null object access
     if (target) {
@@ -989,9 +970,12 @@ export default function Playground() {
     };
 
     if (!didPlayerWin) {
-      const players = Object.keys(room.players);
+      const players = Object.keys(room.players).sort(
+        (a, b) => Number(a.slice(1)) - Number(b.slice(1)),
+      );
       updates.activePlayer =
         players[(players.indexOf(player) + 1) % players.length];
+
       updates.turnNumber = currentTurn + 1;
     }
 
@@ -1349,10 +1333,18 @@ export default function Playground() {
 
   async function newGame() {
     hasDealtRef.current = false;
+    resetAllCards();
+    prevStateRef.current = {};
+    prevIndexRef.current = {};
 
     setdeckFlattened(false);
     setPrevCard(undefined);
+    setWinningPlayer(undefined);
     setShowModal(false);
+    setGameEnded(false);
+    setWaitingRoomModal(false);
+    setCardSent(false);
+
     playersOpenedCards.value = 0;
     await set(ref(db, `room/${roomId}`), null);
     setGameStarted(false);
