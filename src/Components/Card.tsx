@@ -81,7 +81,7 @@ const Card = ({
 
   return (
     <Group transform={transform}>
-      {/* <Rect
+      <Rect
         style={{ value: 'stroke' }}
         x={0}
         y={0}
@@ -96,7 +96,7 @@ const Card = ({
             color="rgba(247, 211, 6, 0.88)"
           />
         </Paint>
-      </Rect> */}
+      </Rect>
 
       {currentImage && (
         <Image

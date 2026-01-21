@@ -1248,7 +1248,10 @@ export default function Playground() {
     .maxDuration(250)
     .runOnJS(true)
     .onStart(async event => {
-      if (gameEnded && room?.status === 'ended') setGameStarted(false);
+      if (gameEnded && room?.status === 'ended') {
+        setGameStarted(false);
+        setRevealAllCards(false);
+      }
       if (room?.status === 'ended') return;
 
       for (let i = cards.length - 1; i >= 0; i--) {
@@ -1358,12 +1361,12 @@ export default function Playground() {
 
     setdeckFlattened(false);
     setPrevCard(undefined);
+    setRevealAllCards(false);
     setWinningPlayer(undefined);
     setShowModal(false);
     setGameEnded(false);
     setWaitingRoomModal(false);
     setCardSent(false);
-    setRevealAllCards(false);
 
     playersOpenedCards.value = 0;
     await set(ref(db, `room/${roomId}`), null);
