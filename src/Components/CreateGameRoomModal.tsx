@@ -13,7 +13,7 @@ type CreateGameModalProps = {
   visible: boolean;
   player?: string;
   onClose: () => void;
-  onProceed: (roomId:number, playerCount:number) => void;
+  onProceed: (roomId: number, playerCount: number) => void;
   heading: string;
   button1: string;
   button2: string;
@@ -38,6 +38,9 @@ export default function CreateGameRoomModal({
   const [roomId, setRoomId] = useState(0);
   const [playersCount, setPlayersCount] = useState(2);
 
+  const MIN_ROOM_ID = 1000;
+  const MAX_ROOM_ID = 999999;
+
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.overlay}>
@@ -46,14 +49,25 @@ export default function CreateGameRoomModal({
 
           <TextInput
             value={roomId ? roomId.toString() : ''}
-            onChangeText={text => {
-              const numeric = text.replace(/[^0-9]/g, '');
-              setRoomId(numeric ? parseInt(numeric, 10) : 0);
-            }}
             keyboardType="numeric"
             placeholder="Enter Room ID"
             placeholderTextColor="#9ca3af"
             style={styles.input}
+            onChangeText={text => {
+              const numeric = text.replace(/[^0-9]/g, '');
+
+              if (numeric === '') {
+                setRoomId(0);
+                return;
+              }
+
+              let value = parseInt(numeric, 10);
+
+              if (value < MIN_ROOM_ID) value = MIN_ROOM_ID;
+              if (value > MAX_ROOM_ID) value = MAX_ROOM_ID;
+
+              setRoomId(value);
+            }}
           />
 
           <Dropdown
@@ -75,7 +89,10 @@ export default function CreateGameRoomModal({
               <Text style={styles.cancelText}>{button1}</Text>
             </Pressable>
 
-            <Pressable style={styles.primaryBtn} onPress={()=>onProceed(roomId, playersCount)}>
+            <Pressable
+              style={styles.primaryBtn}
+              onPress={() => onProceed(roomId, playersCount)}
+            >
               <Text style={styles.primaryText}>{button2}</Text>
             </Pressable>
           </View>
@@ -84,7 +101,6 @@ export default function CreateGameRoomModal({
     </Modal>
   );
 }
-
 
 const styles = StyleSheet.create({
   overlay: {
@@ -179,4 +195,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

@@ -268,29 +268,38 @@ export default function Playground() {
     const indexInHand = parseInt(owner[1]);
     const target = handStartX[indexInHand - 1];
     if (!target) return { x: 0, y: 0 };
+  
     let spreadGap = cardWidth * 0.6;
     let verticalSpreadGap = cardHeight * 0.6;
+     let initialX = target.x-cardWidth;
+    let initialY = target.y+cardHeight;
     if (owner === myPlayerId) {
       verticalSpreadGap = cardHeight * 1 + cardWidth * 0.4;
       spreadGap = cardWidth * 1.2;
+            initialX = target.x-cardWidth*5/2;
+            // initialY = target.y
+
     }
+   
+
 
     if (target) {
       if (playersCount === 2) {
         return {
-          x: (cardWidth * 4) / 2 + spreadGap * index,
+          x:  initialX + spreadGap * index,
           y: target.y + 20,
         };
       } else if (playersCount === 3) {
         if (owner === 'p1') {
           return {
-            x: (cardWidth * 3) / 2 + spreadGap * index,
+            x: initialX + spreadGap * index,
             y: target.y + 20,
           };
         } else {
           return {
             x: target.x,
-            y: (target.y * 3) / 2 + verticalSpreadGap * index,
+            y: initialY + verticalSpreadGap * index,
+              //  y: (target.y * 3) / 2 + verticalSpreadGap * index,
           };
         }
       } else if (playersCount === 4) {
