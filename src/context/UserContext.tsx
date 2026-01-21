@@ -1,24 +1,44 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import  { FirebaseAuthTypes, getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import auth from '@react-native-firebase/auth'; 
+import firestore from '@react-native-firebase/firestore'; 
 
 type UserContextType = {
   user: any | null;
   loading: boolean;
+  setUser: (user: any) => void;
 };
 
 const UserContext = createContext<UserContextType>({
   user: null,
   loading: true,
+  setUser: () => {},
 });
 
 export const UserProvider = ({ children }: any) => {
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const auth = getAuth()
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, firebaseUser => {
-      setUser(firebaseUser);
+    const unsub = auth().onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const userDoc = await firestore()
+            .collection('users')
+            .doc(firebaseUser.uid)
+            .get();
+
+          if (userDoc.exists) { 
+            setUser({ ...firebaseUser.toJSON(), ...userDoc.data() });
+          } else {
+            setUser(firebaseUser);
+          }
+        } catch (error) {
+          console.error("Error fetching user doc: ", error);
+          setUser(firebaseUser);
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
 
@@ -26,7 +46,7 @@ export const UserProvider = ({ children }: any) => {
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, loading }}>
+    <UserContext.Provider value={{ user, loading, setUser }}>
       {children}
     </UserContext.Provider>
   );

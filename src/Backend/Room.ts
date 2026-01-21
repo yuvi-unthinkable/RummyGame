@@ -42,6 +42,7 @@ export type RoomData = {
 
 export type Player = {
   userId: string;
+  userName: string;
   connected: boolean;
   dropped: boolean;
   handCards: Record<number, NetworkCard>;
@@ -79,7 +80,11 @@ export async function createRoom(
   }
 }
 
-export const JoinRoom = async (roomId: number, uid: string) => {
+export const JoinRoom = async (
+  roomId: number,
+  uid: string,
+  username: string,
+) => {
   const db = getDatabase();
   console.log('Joining room:', roomId);
 
@@ -88,7 +93,7 @@ export const JoinRoom = async (roomId: number, uid: string) => {
   if (roomData === null) {
     console.error('Room does not exist');
     return {
-        gameStart: false,
+      gameStart: false,
       playerCount: 0,
     };
   }
@@ -102,7 +107,7 @@ export const JoinRoom = async (roomId: number, uid: string) => {
   if (existingEntry) {
     console.log('user already joined');
     return {
-        gameStart: true,
+      gameStart: true,
       playerCount: roomData.playerCount,
     };
   }
@@ -120,6 +125,7 @@ export const JoinRoom = async (roomId: number, uid: string) => {
     ...players,
     [position]: {
       userId: uid,
+      userName: username,
       connected: true,
       dropped: false,
     },
@@ -139,7 +145,7 @@ export const JoinRoom = async (roomId: number, uid: string) => {
       status: newStatus,
     });
     return {
-        gameStart: true,
+      gameStart: true,
       playerCount: roomData.playerCount,
     };
   } catch (error) {

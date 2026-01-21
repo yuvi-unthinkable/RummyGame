@@ -6,14 +6,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dropdown } from 'react-native-element-dropdown';
+// import { getAvailableRooms } from '../services/db.service';
 
 type JoinGameRoomModalProps = {
   visible: boolean;
   player?: string;
   onClose: () => void;
-  onProceed: (roomId:number) => void;
+  onProceed: (roomId: number) => void;
   heading: string;
   button1: string;
   button2: string;
@@ -29,6 +30,13 @@ export default function JoinGameRoomModal({
 }: JoinGameRoomModalProps) {
   const [roomId, setRoomId] = useState(0);
   const [playersCount, setPlayersCount] = useState(2);
+
+  // useEffect(()=>{
+  //   const result = getAvailableRooms();
+  //   console.log("🚀 ~ JoinGameRoomModal ~ result:", result)
+  // },[])
+
+  
 
   return (
     <Modal transparent visible={visible} animationType="fade">
@@ -48,13 +56,29 @@ export default function JoinGameRoomModal({
             style={styles.input}
           />
 
+          {/* <Dropdown
+            style={styles.dropdown}
+            placeholderStyle={styles.placeholder}
+            selectedTextStyle={styles.selectedText}
+            iconStyle={styles.icon}
+            data={data}
+            maxHeight={250}
+            value={playersCount}
+            labelField="label"
+            valueField="value"
+            placeholder="Select Players"
+            onChange={item => setPlayersCount(item.value)}
+          /> */}
 
           <View style={styles.actions}>
             <Pressable style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.cancelText}>{button1}</Text>
             </Pressable>
 
-            <Pressable style={styles.primaryBtn} onPress={()=>onProceed(roomId)}>
+            <Pressable
+              style={styles.primaryBtn}
+              onPress={() => onProceed(roomId)}
+            >
               <Text style={styles.primaryText}>{button2}</Text>
             </Pressable>
           </View>
@@ -63,7 +87,6 @@ export default function JoinGameRoomModal({
     </Modal>
   );
 }
-
 
 const styles = StyleSheet.create({
   overlay: {
@@ -92,6 +115,31 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
 
+  dropdown: {
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#27272a',
+    paddingHorizontal: 12,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: '#3f3f46',
+  },
+
+  placeholder: {
+    color: '#a1a1aa',
+    fontSize: 15,
+  },
+
+  selectedText: {
+    color: '#f4f4f5',
+    fontSize: 15,
+  },
+  icon: {
+    width: 20,
+    height: 20,
+    tintColor: '#a1a1aa',
+  },
+
   input: {
     height: 48,
     borderRadius: 8,
@@ -102,8 +150,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#3f3f46',
   },
-
-
 
   actions: {
     flexDirection: 'row',
@@ -134,4 +180,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

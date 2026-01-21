@@ -13,14 +13,18 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 // import { UserContext } from '../context/UserContext';
 import { RootStackParamList } from '../navigators/types';
 import { handleLogin } from '../database/UserServices';
+import { useUser } from '../context/UserContext';
 
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 export default function Login() {
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigation = useNavigation<NavigationProp>();
+  const { setUser } = useUser(); // Get the setter from context
+  
 
   const handleLogin1 = async () => {
     if (!email || !password) {
@@ -34,6 +38,7 @@ export default function Login() {
       Alert.alert('Error', 'Invalid Credentials');
       return;
     }
+    setUser(user)
   };
 
   return (

@@ -125,6 +125,7 @@ export default function Playground() {
   const [showQuitModal, setShowQuitModal] = useState(false);
 
   const [gameStarted, setGameStarted] = useState(false);
+  const [revealAllCards, setRevealAllCards] = useState(false);
 
   const [cardSent, setCardSent] = useState(false);
 
@@ -162,13 +163,9 @@ export default function Playground() {
   const user2Pos = { x: 10, y: height / 8 - userSize };
   const user1Pos = { x: 10, y: height * 0.9 - 20 };
 
-  // Hand layout constantsh
   const cardsPerPlayer = 5;
-  let spreadGap = cardWidth * 0.1;
   const totalCardsInHands = cardsPerPlayer;
   const maxCardSpread = totalCardsInHands - 1;
-  const totalHandWidth =
-    cardWidth * totalCardsInHands + maxCardSpread * spreadGap;
   const user1HandY = height * 0.9 - 20;
   const user2HandY = height / 8 - userSize;
   const TOTAL_PLAYERS = 2;
@@ -267,73 +264,79 @@ export default function Playground() {
   const HAND_START_X = (cardWidth * 4) / 2;
 
   function computeHandTarget(index: number, owner: string) {
-    if (owner === 'unset' || !owner) return { x: 0, y: 0 }; // Guard clauseuE
+    if (owner === 'unset' || !owner) return { x: 0, y: 0 };
     const indexInHand = parseInt(owner[1]);
-    // console.log('🚀 ~ computeHandTarget ~ indexInHand:', indexInHand);
     const target = handStartX[indexInHand - 1];
-    if (!target) return { x: 0, y: 0 }; // Prevent null object access
+    if (!target) return { x: 0, y: 0 };
+    let spreadGap = cardWidth * 0.6;
+    let verticalSpreadGap = cardHeight * 0.6;
+    if (owner === myPlayerId) {
+      verticalSpreadGap = cardHeight * 1 + cardWidth * 0.4;
+      spreadGap = cardWidth * 1.2;
+    }
+
     if (target) {
       if (playersCount === 2) {
         return {
-          x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
+          x: (cardWidth * 4) / 2 + spreadGap * index,
           y: target.y + 20,
         };
       } else if (playersCount === 3) {
         if (owner === 'p1') {
           return {
-            x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
+            x: (cardWidth * 3) / 2 + spreadGap * index,
             y: target.y + 20,
           };
         } else {
           return {
             x: target.x,
-            y: (target.y * 3) / 2 + (cardHeight + spreadGap) * index,
+            y: (target.y * 3) / 2 + verticalSpreadGap * index,
           };
         }
       } else if (playersCount === 4) {
         if (owner === 'p1' || owner === 'p3') {
           return {
-            x: (cardWidth * 3) / 2 + (cardWidth + spreadGap) * index,
+            x: (cardWidth * 3) / 2 + spreadGap * index,
             y: target.y + 20,
           };
         } else {
           return {
             x: target.x,
-            y: target.y - 40 + (cardHeight + spreadGap) * index,
+            y: target.y - 40 + verticalSpreadGap * index,
           };
         }
       } else if (playersCount === 5) {
         if (owner === 'p1') {
           return {
-            x: width / 2 - cardWidth * 3 + (cardWidth + spreadGap) * index,
+            x: width / 2 - cardWidth * 3 + spreadGap * index,
             y: target.y + 20,
           };
         } else if (owner === 'p3' || owner === 'p4') {
           return {
             x: owner === 'p3' ? target.x - 30 : target.x + 30,
-            y: target.y + 20 + (cardHeight + spreadGap) * index,
+            y: target.y + 20 + verticalSpreadGap * index,
           };
         } else {
           return {
             x: owner === 'p2' ? target.x - 20 : target.x + 20,
-            y: target.y - 40 + (cardHeight + spreadGap) * index,
+            y: target.y - 40 + verticalSpreadGap * index,
           };
         }
       } else if (playersCount === 6) {
         if (owner === 'p1' || owner === 'p4') {
           return {
-            x: width / 2 - cardWidth * 3 + (cardWidth + spreadGap) * index,
+            x: width / 2 - cardWidth * 3 + spreadGap * index,
             y: owner === 'p1' ? target.y + 20 : target.y + 40,
           };
         } else if (owner === 'p3' || owner === 'p5') {
           return {
             x: owner === 'p3' ? target.x - 30 : target.x + 30,
-            y: target.y - 40 + (cardHeight + spreadGap) * index,
+            y: target.y - 40 + verticalSpreadGap * index,
           };
         } else {
           return {
             x: owner === 'p2' ? target.x - 30 : target.x + 30,
-            y: target.y - 80 + (cardHeight + spreadGap) * index,
+            y: target.y - 80 + verticalSpreadGap * index,
           };
         }
       }
@@ -346,7 +349,7 @@ export default function Playground() {
   }
 
   const endBtnPos = {
-    x: width / 2 - 30,
+    x: width - 120,
     y: (height * 4) / 5,
   };
 
@@ -473,6 +476,18 @@ export default function Playground() {
 
     return map;
   }, [logicalCards]);
+
+  const visualIndexMap = useMemo(() => {
+    const map = new Map<number, number>();
+
+    Object.values(orderedHands).forEach(hand => {
+      hand.forEach((c, i) => {
+        map.set(c.id, i);
+      });
+    });
+
+    return map;
+  }, [orderedHands]);
 
   async function dealCardsHostOnly(
     roomId: number,
@@ -1092,10 +1107,15 @@ export default function Playground() {
 
       const isMine = lc.owner === myPlayerId;
 
-      card.faceup.value =
-        lc.state === 'hand' ? isMine : lc.state === 'prevcard' ? true : false;
+      card.faceup.value = revealAllCards
+        ? true
+        : lc.state === 'hand'
+        ? isMine
+        : lc.state === 'prevcard'
+        ? true
+        : false;
     });
-  }, [logicalCards]);
+  }, [logicalCards, revealAllCards, myPlayerId]);
 
   useEffect(() => {
     if (!room || !user?.uid) return;
@@ -1140,8 +1160,7 @@ export default function Playground() {
         if (!target) return;
 
         if (isInitialDeal) {
-          const delay =
-            ((lc.indexInHand ?? 0) + Number(lc.owner.slice(1)) * 0.5) * 120;
+          const delay = visualIndex * 120;
 
           card.x.value = withDelay(
             delay,
@@ -1321,7 +1340,7 @@ export default function Playground() {
   async function joinRoomFunction(roomId: number) {
     setRoomId(roomId);
     if (user?.uid) {
-      const result = await JoinRoom(roomId, user.uid);
+      const result = await JoinRoom(roomId, user.uid, user.username);
 
       if (result.gameStart) {
         setJoinRoomModal(false);
@@ -1344,20 +1363,34 @@ export default function Playground() {
     setGameEnded(false);
     setWaitingRoomModal(false);
     setCardSent(false);
+    setRevealAllCards(false);
 
     playersOpenedCards.value = 0;
     await set(ref(db, `room/${roomId}`), null);
     setGameStarted(false);
   }
 
-  const handleCancel = () => {
+  // async function handleResult() {
+  //   console.log('handle resultis called');
+  //   setShowModal(false);
+  //   playersOpenedCards.value = 0;
+  //   if (!room) return console.log('room has been deleated alredy.....');
+  //   setGameEnded(true);
+  //   // await set(ref(db, `room/${roomId}`), null);
+  // }
+
+  useEffect(() => {
+    console.log('revealAllCards : >>>>>>> ', revealAllCards);
+  }, [revealAllCards]);
+
+  async function handleResult() {
     setShowModal(false);
-  };
-  const handleResult = () => {
-    setShowModal(false);
-    setGameEnded(true);
     playersOpenedCards.value = 0;
-  };
+    console.log(revealAllCards);
+    setRevealAllCards(true);
+    console.log('ater>>>>>>>>>>>>>>', revealAllCards);
+    setGameEnded(true);
+  }
 
   useEffect(() => {
     if (!roomId) return;
@@ -1407,6 +1440,7 @@ export default function Playground() {
   // console.log('room>>>>>>>>>>>>>>..', room);
   // console.log('CreateRoomModal>>>>>>>>>>>>>>>>>>', CreateRoomModal);
 
+  let countIndex = 0;
   return (
     <View style={{ width: width, height: height, backgroundColor: '#1e1e1e' }}>
       {/* --- MODALS --- */}
@@ -1454,7 +1488,7 @@ export default function Playground() {
               ? `Game ended by ${room?.result?.endedBy}  and ${room?.result?.winners} has won the game`
               : `${winningPlayer} has won the game`
           }
-          button1="Result"
+          button1="Show"
           button2="New Game"
         />
       )}
@@ -1566,46 +1600,70 @@ export default function Playground() {
 
               {/* 3. User Avatars Layer */}
               <Group>
-                {userPositions.map((p, i) => (
-                  <Group key={i}>
-                    {userImage && (
-                      <Image
-                        image={userImage}
-                        x={p.x}
-                        y={p.y}
-                        width={userSize}
-                        height={userSize}
-                      />
-                    )}
-                    {defaultFont && (
-                      <Text
-                        text={`P${i + 1}`}
-                        x={p.x}
-                        y={p.y - 5}
-                        font={defaultFont}
-                        color="white"
-                      />
-                    )}
-                  </Group>
-                ))}
+                {room &&
+                  userPositions.map((p, i) => {
+                    // Determine the player key (e.g., "p1", "p2")
+                    const playerKey = `p${i + 1}`;
+                    const playerName = room.players?.[playerKey]?.userName;
+
+                    return (
+                      <Group key={i}>
+                        {userImage && (
+                          <Image
+                            image={userImage}
+                            x={p.x}
+                            y={p.y}
+                            width={userSize}
+                            height={userSize}
+                          />
+                        )}
+                        {defaultFont && (
+                          <Text
+                            // Corrected: Uses i + 1 to match "p1", "p2", etc.
+                            text={playerName || 'Joining...'}
+                            x={p.x}
+                            y={p.y - 5}
+                            font={defaultFont}
+                            color="white"
+                          />
+                        )}
+                      </Group>
+                    );
+                  })}
               </Group>
 
               <Group>
-                {cards.map(card => (
-                  <Card
-                    key={card.meta.id}
-                    x={card.x}
-                    y={card.y}
-                    owner={card.owner}
-                    state={card.state}
-                    myId={myId}
-                    backCardImg={backCardImg}
-                    faceCardImg={card.cardFaceImg}
-                    cardWidth={cardWidth}
-                    cardHeight={cardHeight}
-                    activePlayer={room?.activePlayer}
-                  />
-                ))}
+                {[...cards]
+                  .sort((a, b) => {
+                    const indexA = visualIndexMap.get(a.meta.id);
+                    const indexB = visualIndexMap.get(b.meta.id);
+
+                    const aInHand = indexA !== undefined;
+                    const bInHand = indexB !== undefined;
+
+                    if (aInHand && bInHand) {
+                      return indexA! - indexB!;
+                    }
+
+                    if (aInHand && !bInHand) return 1;
+                    if (!aInHand && bInHand) return -1;
+
+                    return 0;
+                  })
+                  .map(card => (
+                    <Card
+                      key={card.meta.id}
+                      x={card.x}
+                      y={card.y}
+                      owner={card.owner}
+                      faceup={card.faceup}
+                      backCardImg={backCardImg}
+                      faceCardImg={card.cardFaceImg}
+                      cardWidth={cardWidth}
+                      cardHeight={cardHeight}
+                      activePlayer={room?.activePlayer}
+                    />
+                  ))}
               </Group>
             </Canvas>
           </GestureDetector>

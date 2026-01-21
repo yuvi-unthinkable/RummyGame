@@ -43,9 +43,11 @@ export const handleLogin = async (email: string, password: string) => {
 
     // Fetch the username from Firestore
     const userDoc = await firestore().collection('users').doc(uid).get();
+    console.log("🚀 ~ handleLogin ~ userDoc:", userDoc)
 
     if (userDoc.exists) {
       const userData = userDoc.data();
+      console.log("🚀 ~ handleLogin ~ userData:", userData)
       console.log('Welcome back, ' + userData?.username);
 
       return userData;
