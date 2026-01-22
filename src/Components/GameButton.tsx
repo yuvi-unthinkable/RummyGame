@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 18,
     marginVertical: 6,
     borderWidth: 1,
     ...Platform.select({

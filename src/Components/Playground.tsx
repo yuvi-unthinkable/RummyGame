@@ -268,25 +268,22 @@ export default function Playground() {
     const indexInHand = parseInt(owner[1]);
     const target = handStartX[indexInHand - 1];
     if (!target) return { x: 0, y: 0 };
-  
-    let spreadGap = cardWidth * 0.6;
-    let verticalSpreadGap = cardHeight * 0.6;
-     let initialX = target.x-cardWidth;
-    let initialY = target.y+cardHeight;
+
+    let initialX = target.x - cardWidth * 2;
+    let initialY = target.y + cardHeight;
+    let spreadGap = cardWidth * 1.1;
+    let verticalSpreadGap = cardHeight * 1.1;
     if (owner === myPlayerId) {
       verticalSpreadGap = cardHeight * 1 + cardWidth * 0.4;
-      spreadGap = cardWidth * 1.2;
-            initialX = target.x-cardWidth*5/2;
-            // initialY = target.y
-
+      spreadGap = cardWidth * 1.1;
+      initialX = target.x - (cardWidth * 5) / 2;
+      // initialY = target.y
     }
-   
-
 
     if (target) {
       if (playersCount === 2) {
         return {
-          x:  initialX + spreadGap * index,
+          x: initialX + spreadGap * index,
           y: target.y + 20,
         };
       } else if (playersCount === 3) {
@@ -299,36 +296,38 @@ export default function Playground() {
           return {
             x: target.x,
             y: initialY + verticalSpreadGap * index,
-              //  y: (target.y * 3) / 2 + verticalSpreadGap * index,
+            //  y: (target.y * 3) / 2 + verticalSpreadGap * index,
           };
         }
       } else if (playersCount === 4) {
         if (owner === 'p1' || owner === 'p3') {
           return {
-            x: (cardWidth * 3) / 2 + spreadGap * index,
+            x: initialX + spreadGap * index,
             y: target.y + 20,
           };
         } else {
           return {
             x: target.x,
-            y: target.y - 40 + verticalSpreadGap * index,
+            y: initialY + verticalSpreadGap * index,
           };
         }
       } else if (playersCount === 5) {
         if (owner === 'p1') {
           return {
-            x: width / 2 - cardWidth * 3 + spreadGap * index,
+            x: initialX + spreadGap * index,
             y: target.y + 20,
           };
         } else if (owner === 'p3' || owner === 'p4') {
           return {
-            x: owner === 'p3' ? target.x - 30 : target.x + 30,
+            x: owner === 'p3' ? target.x - 40 : target.x + 40,
             y: target.y + 20 + verticalSpreadGap * index,
           };
         } else {
+          if (owner !== myPlayerId) verticalSpreadGap = cardHeight * 0.6;
+
           return {
             x: owner === 'p2' ? target.x - 20 : target.x + 20,
-            y: target.y - 40 + verticalSpreadGap * index,
+            y: target.y + 10 + verticalSpreadGap * index,
           };
         }
       } else if (playersCount === 6) {
@@ -338,6 +337,7 @@ export default function Playground() {
             y: owner === 'p1' ? target.y + 20 : target.y + 40,
           };
         } else if (owner === 'p3' || owner === 'p5') {
+          if (owner !== myPlayerId) verticalSpreadGap = cardHeight * 0.6;
           return {
             x: owner === 'p3' ? target.x - 30 : target.x + 30,
             y: target.y - 40 + verticalSpreadGap * index,
@@ -358,7 +358,7 @@ export default function Playground() {
   }
 
   const endBtnPos = {
-    x: width - 120,
+    x: width / 2 - 40,
     y: (height * 4) / 5,
   };
 
@@ -414,8 +414,9 @@ export default function Playground() {
         indexInHand: null,
       });
     });
+    //drive.google.com/file/d/1xajEj2u_WJxCzDYfKLrNt6qFSDSAlVcV/view?usp=sharing
 
-    return result;
+    https: return result;
   }, [room]);
 
   const resolveRound = () => {
@@ -1403,6 +1404,14 @@ export default function Playground() {
     console.log('ater>>>>>>>>>>>>>>', revealAllCards);
     setGameEnded(true);
   }
+  async function handleCancel() {
+    setWaitingRoomModal(false);
+    if (!room?.players) return;
+
+    await set(ref(db, `room/${roomId}/players/${myId}`), null);
+
+    playersOpenedCards.value = 0;
+  }
 
   useEffect(() => {
     if (!roomId) return;
@@ -1531,7 +1540,7 @@ export default function Playground() {
       {WaitingRoomModal && (
         <WaitingModal
           visible={WaitingRoomModal}
-          onClose={() => setWaitingRoomModal(false)}
+          onClose={handleCancel}
           heading={'Join Room'}
           button1="Cancel"
           button2="Join"
@@ -1686,8 +1695,8 @@ export default function Playground() {
                 position: 'absolute',
                 left: endBtnPos.x,
                 top: endBtnPos.y,
-                width: 100,
-                height: 40,
+                width: 90,
+                height: 20,
                 zIndex: 100,
               }}
             >
