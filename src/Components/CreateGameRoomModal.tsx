@@ -38,7 +38,7 @@ export default function CreateGameRoomModal({
   const [roomId, setRoomId] = useState(0);
   const [playersCount, setPlayersCount] = useState(2);
 
-  const MIN_ROOM_ID = 1000;
+  const MIN_ROOM_ID = 1;
   const MAX_ROOM_ID = 999999;
 
   return (
