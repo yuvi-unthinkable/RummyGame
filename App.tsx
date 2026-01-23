@@ -13,6 +13,7 @@ import Playground from './src/Components/Playground';
 import { UserProvider, useUser } from './src/context/UserContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { RootStackParamList } from './src/navigators/types';
+import Home from './src/Components/Home';
 
 const Stack = createNativeStackNavigator();
 
@@ -30,6 +31,7 @@ const AuthStack = () => (
 // 2. Define the Game Stack (Logged In)
 const GameStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Home" component={Home} />
     <Stack.Screen name="Playground" component={Playground} />
   </Stack.Navigator>
 );

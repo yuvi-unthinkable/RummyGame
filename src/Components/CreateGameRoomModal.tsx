@@ -11,7 +11,6 @@ import { Dropdown } from 'react-native-element-dropdown';
 
 type CreateGameModalProps = {
   visible: boolean;
-  player?: string;
   onClose: () => void;
   onProceed: (roomId: number, playerCount: number) => void;
   heading: string;

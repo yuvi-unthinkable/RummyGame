@@ -12,7 +12,6 @@ import { Dropdown } from 'react-native-element-dropdown';
 
 type JoinGameRoomModalProps = {
   visible: boolean;
-  player?: string;
   onClose: () => void;
   onProceed: (roomId: number) => void;
   heading: string;

@@ -9,14 +9,7 @@ import {
   useImage,
 } from '@shopify/react-native-skia';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Button,
-  StyleSheet,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
 import {
   withTiming,
   SharedValue,
@@ -33,13 +26,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardMeta, CardState, useDeck } from './cardTypes';
 import EndModal from './EndModal';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigators/types';
-import { useNavigation } from '@react-navigation/native';
 import { createRoom, JoinRoom, Player, RoomData } from '../Backend/Room';
 import { useUser } from '../context/UserContext';
 import { NetworkCard, useGameStarted } from '../Backend/useGameStarted';
-import { getRoomSnap, UpdateCardData } from '../services/db.service';
 import Card from './Card';
 import { GameButton } from './GameButton';
 
@@ -51,13 +40,17 @@ import {
   set,
 } from '@react-native-firebase/database';
 import { getApp } from '@react-native-firebase/app';
-import CreateGameModal from './CreateGameRoomModal';
-import CreateGameRoomModal from './CreateGameRoomModal';
-import JoinGameRoomModal from './JoinGameRoomModal';
+// import CreateGameModal from './CreateGameRoomModal';
+// import CreateGameRoomModal from './CreateGameRoomModal';
+// import JoinGameRoomModal from './JoinGameRoomModal';
 import WaitingModal from './WaitingModal';
 import { removeHighestCards } from '../services/RemoveCard';
 import { ReleaseOneMoreCard } from '../services/ReleaseDeckCard';
 import { ReleasePrevCard } from '../services/ReleasePrevCard';
+import { getHandForPlayer } from '../Utility/getPlayerHands';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RootStackParamList } from '../navigators/types';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 export type CardData = {
   meta: CardMeta;
@@ -89,6 +82,13 @@ type Positions = {
   y: number;
 };
 
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Playground'
+>;
+
+type PlaygroundRouteProp = RouteProp<RootStackParamList, 'Playground'>;
+
 export default function Playground() {
   const [winningPlayer, setWinningPlayer] = useState<playerId>();
 
@@ -108,19 +108,19 @@ export default function Playground() {
   const [revealAllCards, setRevealAllCards] = useState(false);
 
   const [cardSent, setCardSent] = useState(false);
+  const route = useRoute<PlaygroundRouteProp>();
 
-  // dimension hooks
+  const { roomid, playerCount } = route.params;
+
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const cardDeck = useDeck();
 
-  // --- Assets hooks ----
   const bg = useImage(require('../../assets/poker-bg.png'));
   const backCardImg = useImage(require('../../assets/cardBackground.png'));
   const table = useImage(require('../../assets/table.png'));
   const userImage = useImage(require('../../assets/user.png'));
 
-  // --- Dimensions -----
   const cardWidth = width * 0.1;
   const cardHeight = cardWidth * 1.2;
   const deckX = width / 2 - cardWidth / 2;
@@ -137,8 +137,6 @@ export default function Playground() {
   const tableX = width / 2 - tableWidth / 2;
   const tableY = height / 2 - tableHeight / 2;
 
-  // --- Players -----
-
   const userSize = 40;
 
   const hasDealtRef = useRef(false);
@@ -147,6 +145,17 @@ export default function Playground() {
   const prevIndexRef = useRef<Record<number, number | null>>({});
 
   const db = getDatabase(getApp());
+  const navigation = useNavigation<NavigationProp>();
+
+  useEffect(() => {
+    console.log('i am updating roomid');
+    if (roomid && playerCount) {
+      setRoomId(roomid);
+      setPlayersCount(playerCount);
+
+      console.log('roomid nd player count updated');
+    }
+  }, [roomid, playerCount]);
 
   useEffect(() => {
     if (room?.status === 'waiting') {
@@ -192,13 +201,20 @@ export default function Playground() {
 
   const playersOpenedCards = useSharedValue(0);
 
-  // setTimeout(() => {}, 100);
+  const myPlayerId = useMemo<playerId | null>(() => {
+    if (!room?.players || !user?.uid) return null;
+
+    return (
+      Object.entries(room.players).find(
+        ([_, p]) => p.userId === user.uid,
+      )?.[0] ?? null
+    );
+  }, [room, user]);
 
   const userPositions = useMemo(() => {
     if (!playersCount || playersCount < 1 || !width || !height) {
       return [];
     }
-    // console.log('>>>>>>>>', playersCount);
     const positions: Positions[] = [];
 
     const cx = width / 2;
@@ -222,23 +238,56 @@ export default function Playground() {
     return positions;
   }, [playersCount, width, height, userSize]);
 
-  const handStartX = userPositions;
+  const getVisualPosition = (targetPlayerId: string) => {
+    'worklet';
+    if (!myPlayerId || !targetPlayerId) {
+      console.log(
+        'myplayerId or targetplayerId not present>>>>>>>',
+        myPlayerId,
+        targetPlayerId,
+      );
+      return userPositions[0];
+    }
+
+    const myIndex = parseInt(myPlayerId.replace('p', ''), 10) - 1;
+    console.log('🚀 ~ getVisualPosition ~ myIndex:', myIndex);
+    const targetIndex = parseInt(targetPlayerId.replace('p', ''), 10) - 1;
+    console.log('🚀 ~ getVisualPosition ~ targetIndex:', targetIndex);
+
+    const visualIndex = (targetIndex - myIndex + playersCount) % playersCount;
+
+    return userPositions[visualIndex];
+  };
 
   function computeHandTarget(index: number, owner: string) {
     if (owner === 'unset' || !owner) return { x: 0, y: 0 };
+    if (!myPlayerId || !owner) {
+      console.log('myplayerId or owner not present>>>>>>>', myPlayerId, owner);
+      return userPositions[0];
+    }
     const indexInHand = parseInt(owner[1]);
-    const target = handStartX[indexInHand - 1];
+
+    const myIndex = parseInt(myPlayerId.replace('p', ''), 10) - 1;
+    console.log('🚀 ~ getVisualPosition ~ myIndex:', myIndex);
+    const targetIndex = parseInt(owner.replace('p', ''), 10) - 1;
+    console.log('🚀 ~ getVisualPosition ~ targetIndex:', targetIndex);
+
+    const visualIndex = (targetIndex - myIndex + playersCount) % playersCount;
+
+    // const target = handStartX[indexInHand - 1];
+
+    const target = getVisualPosition(owner);
+    // console.log("🚀 ~ computeHandTarget ~ target:",owner,  target.x, target.y)
     if (!target) return { x: 0, y: 0 };
 
     let initialX = target.x - cardWidth * 2;
     let initialY = target.y + cardHeight;
     let spreadGap = cardWidth * 1.1;
     let verticalSpreadGap = cardHeight * 1.1;
-    if (owner === myPlayerId) {
+    if (visualIndex === 0) {
       verticalSpreadGap = cardHeight * 1 + cardWidth * 0.4;
       spreadGap = cardWidth * 1.1;
       initialX = target.x - (cardWidth * 5) / 2;
-      // initialY = target.y
     }
 
     if (target) {
@@ -248,7 +297,7 @@ export default function Playground() {
           y: target.y + 20,
         };
       } else if (playersCount === 3) {
-        if (owner === 'p1') {
+        if (visualIndex === 0) {
           return {
             x: initialX + spreadGap * index,
             y: target.y + 20,
@@ -257,11 +306,10 @@ export default function Playground() {
           return {
             x: target.x,
             y: initialY + verticalSpreadGap * index,
-            //  y: (target.y * 3) / 2 + verticalSpreadGap * index,
           };
         }
       } else if (playersCount === 4) {
-        if (owner === 'p1' || owner === 'p3') {
+        if (visualIndex === 0 || visualIndex === 2) {
           return {
             x: initialX + spreadGap * index,
             y: target.y + 20,
@@ -273,49 +321,44 @@ export default function Playground() {
           };
         }
       } else if (playersCount === 5) {
-        if (owner === 'p1') {
+        if (visualIndex === 0) {
           return {
             x: initialX + spreadGap * index,
             y: target.y + 20,
           };
-        } else if (owner === 'p3' || owner === 'p4') {
+        } else if (visualIndex === 2 || visualIndex === 3) {
           return {
-            x: owner === 'p3' ? target.x - 40 : target.x + 40,
+            x: visualIndex === 2 ? target.x - 40 : target.x + 40,
             y: target.y + 20 + verticalSpreadGap * index,
           };
         } else {
-          if (owner !== myPlayerId) verticalSpreadGap = cardHeight * 0.6;
+          if (visualIndex !== 0) verticalSpreadGap = cardHeight * 0.6;
 
           return {
-            x: owner === 'p2' ? target.x - 20 : target.x + 20,
+            x: visualIndex === 1 ? target.x - 20 : target.x + 20,
             y: target.y + 10 + verticalSpreadGap * index,
           };
         }
       } else if (playersCount === 6) {
-        if (owner === 'p1' || owner === 'p4') {
+        if (visualIndex === 0 || visualIndex === 3) {
           return {
             x: width / 2 - cardWidth * 3 + spreadGap * index,
-            y: owner === 'p1' ? target.y + 20 : target.y + 40,
+            y: visualIndex === 0 ? target.y + 20 : target.y + 40,
           };
-        } else if (owner === 'p3' || owner === 'p5') {
+        } else if (visualIndex === 2 || visualIndex === 4) {
           if (owner !== myPlayerId) verticalSpreadGap = cardHeight * 0.6;
           return {
-            x: owner === 'p3' ? target.x - 30 : target.x + 30,
+            x: visualIndex === 2 ? target.x - 30 : target.x + 30,
             y: target.y - 40 + verticalSpreadGap * index,
           };
         } else {
           return {
-            x: owner === 'p2' ? target.x - 30 : target.x + 30,
+            x: visualIndex === 1 ? target.x - 30 : target.x + 30,
             y: target.y - 80 + verticalSpreadGap * index,
           };
         }
       }
     }
-  }
-
-  function getHandForPlayer(room: RoomData, playerId: playerId): NetworkCard[] {
-    const map = room.players[playerId]?.handCards;
-    return map ? Object.values(map).filter(Boolean) : [];
   }
 
   const endBtnPos = {
@@ -373,38 +416,9 @@ export default function Playground() {
         indexInHand: null,
       });
     });
-    //drive.google.com/file/d/1xajEj2u_WJxCzDYfKLrNt6qFSDSAlVcV/view?usp=sharing
 
-    https: return result;
+    return result;
   }, [room]);
-
-  // const resolveRound = () => {
-  //   const shownCards = cards.filter(c => c.state.value === 'show');
-  //   if (shownCards?.length !== 2) return;
-
-  //   const [c1, c2] = shownCards;
-
-  //   let winner: playerId = 'unset';
-  //   if (c1.meta.priority > c2.meta.priority) winner = c1.owner.value;
-  //   else if (c1.meta.priority < c2.meta.priority) winner = c2.owner.value;
-
-  //   console.log(
-  //     `Round Result: ${winner} (${c1.meta.priority} vs ${c2.meta.priority})`,
-  //   );
-
-  //   const target = winner === 'p1' ? user1Pos : user2Pos;
-
-  //   setTimeout(() => {
-  //     shownCards?.forEach(card => {
-  //       card.state.value = 'collected';
-  //       card.x.value = withTiming(target.x, { duration: 600 });
-  //       card.y.value = withTiming(target.y, { duration: 600 }, finished => {
-  //         if (finished) card.faceup.value = false;
-  //       });
-  //     });
-  //     cardsOnTableCount.value = 0;
-  //   }, 1000);
-  // };
 
   const defaultFont = matchFont({
     fontFamily: 'sans-serif',
@@ -514,285 +528,12 @@ export default function Playground() {
       await update(roomRef, updates);
       hasDealtRef.current = true;
       console.log('[Deal] Cards dealt successfully');
-      // setGameStarted(true);
       console.log('🚀 ~ dealCardsHostOnly ~ setGameStarted:', gameStarted);
     } catch (err) {
       console.error('[Deal] Failed:', err);
       hasDealtRef.current = false;
     }
   }
-
-  const myPlayerId = useMemo<playerId | null>(() => {
-    if (!room?.players || !user?.uid) return null;
-
-    return (
-      Object.entries(room.players).find(
-        ([_, p]) => p.userId === user.uid,
-      )?.[0] ?? null
-    );
-  }, [room, user]);
-
-  // const ReleaseOneMoreCard = async () => {
-  //   setCardSent(true);
-
-  //   if (!room || !room.deck?.order || !room.activePlayer) {
-  //     console.log('[Release] Room not ready');
-  //     return;
-  //   }
-
-  //   if (room?.status === 'ended') return;
-
-  //   if (!myPlayerId || !room.players[myPlayerId]) {
-  //     console.log('[Release] Player not registered');
-  //     return;
-  //   }
-
-  //   if (room.activePlayer !== myPlayerId) {
-  //     console.log('[Release] Not your turn');
-  //     return;
-  //   }
-
-  //   const handCards = getHandForPlayer(room, myPlayerId);
-  //   const targetCardId = room.deck.order[0];
-
-  //   if (targetCardId == null) {
-  //     console.log('[Release] No cards left in deck');
-  //     return;
-  //   }
-
-  //   const nextIndex = getNextHandIndex(handCards);
-
-  //   const updates: Record<string, any> = {
-  //     [`players/${myPlayerId}/handCards/${targetCardId}`]: {
-  //       id: targetCardId,
-  //       owner: myPlayerId,
-  //       state: 'hand',
-  //       indexInHand: nextIndex,
-  //       priority: cardDeck[targetCardId].priority,
-  //     },
-  //     deck: {
-  //       order: room.deck.order.slice(1),
-  //     },
-  //     turnNumber: (room.turnNumber ?? 0) + 1,
-  //   };
-
-  //   await update(ref(db, `room/${roomId}`), updates);
-  // };
-
-  // const ReleasePrevCard = async () => {
-  //   setCardSent(true);
-
-  //   if (!room || !room.activePlayer || !myPlayerId) return;
-
-  //   if (room?.status === 'ended') return;
-
-  //   if (room.activePlayer !== myPlayerId) {
-  //     console.log('[ReleasePrev] Not your turn');
-  //     return;
-  //   }
-
-  //   if (!room.PreviousCard) {
-  //     console.log('[ReleasePrev] No PreviousCard in room');
-  //     return;
-  //   }
-
-  //   const prev = room.PreviousCard;
-
-  //   if (prev.owner && prev.owner !== 'unset') {
-  //     console.log('[ReleasePrev] PreviousCard already owned');
-  //     return;
-  //   }
-
-  //   const handCards = getHandForPlayer(room, myPlayerId);
-  //   const nextIndex = getNextHandIndex(handCards);
-
-  //   const updates: Record<string, any> = {
-  //     [`players/${myPlayerId}/handCards/${prev.id}`]: {
-  //       ...prev,
-  //       owner: myPlayerId,
-  //       state: 'hand',
-  //       indexInHand: nextIndex,
-  //       priority: prev.priority,
-  //     },
-  //     PreviousCard: null,
-  //     [`turnLocks/${myPlayerId}`]: {
-  //       id: prev.id,
-  //       blockedPriority: prev.priority,
-  //       untilTurn: (room.turnNumber ?? 0) + 1,
-  //     },
-  //     turnNumber: (room.turnNumber ?? 0) + 1,
-  //   };
-
-  //   await update(ref(db, `room/${roomId}`), updates);
-
-  //   setPrevCard(undefined);
-  // };
-
-  // const removeHighestCards = async (card: CardData, player: playerId) => {
-  //   setCardSent(false);
-
-  //   if (!room || !room.activePlayer) {
-  //     console.log('room not ready');
-  //     setCardSent(true);
-  //     return;
-  //   }
-  //   if (room?.status === 'ended') {
-  //     setCardSent(true);
-  //     return;
-  //   }
-
-  //   const logical = logicalCards.find(c => c.id === card.meta.id);
-  //   if (!logical) {
-  //     setCardSent(true);
-  //     return;
-  //   }
-
-  //   if (logical.owner !== player) {
-  //     Alert.alert('Invalid Move', 'This card does not belong to you');
-  //     setCardSent(true);
-  //     return;
-  //   }
-
-  //   const handMap = room.players[player]?.handCards;
-  //   if (!handMap) return;
-
-  //   const handCards = Object.values(handMap).filter(Boolean);
-
-  //   const currentTurn = room.turnNumber ?? 0;
-  //   const lock = room.turnLocks?.[player];
-  //   const isLocked = lock && currentTurn <= lock.untilTurn;
-  //   const lockedId = isLocked ? lock.id : null;
-
-  //   const clickedPriority = handMap[logical.id]?.priority;
-  //   if (clickedPriority == null) {
-  //     setCardSent(true);
-  //     return;
-  //   }
-
-  //   const samePriority = handCards.filter(c => c.priority === clickedPriority);
-  //   if (samePriority.length === 0) {
-  //     setCardSent(true);
-  //     return;
-  //   }
-
-  //   const allSamePriority = samePriority.length === handCards.length;
-
-  //   if (!allSamePriority && lockedId === logical.id) {
-  //     Alert.alert(
-  //       'Invalid Move',
-  //       'You cannot send the card you just picked from previous.',
-  //     );
-  //     setCardSent(true);
-  //     return;
-  //   }
-
-  //   let newPrev: NetworkCard;
-  //   let toCollect: NetworkCard[];
-
-  //   if (allSamePriority && lockedId) {
-  //     const availableToSend = samePriority.filter(c => c.id !== lockedId);
-
-  //     if (availableToSend.length === 0) {
-  //       Alert.alert('Invalid Move', 'No valid cards to send.');
-  //       setCardSent(true);
-  //       return;
-  //     }
-
-  //     const userClickedValid = availableToSend.some(c => c.id === logical.id);
-
-  //     if (userClickedValid) {
-  //       newPrev = handMap[logical.id];
-  //     } else {
-  //       newPrev = availableToSend[0];
-  //     }
-
-  //     toCollect = samePriority.filter(
-  //       c => c.id !== newPrev.id && c.id !== lockedId,
-  //     );
-  //   } else {
-  //     newPrev = handMap[logical.id];
-  //     toCollect = samePriority.filter(c => c.id !== logical.id);
-  //   }
-
-  //   if (
-  //     isLocked &&
-  //     !allSamePriority &&
-  //     lock.blockedPriority === handMap[logical.id]?.priority
-  //   ) {
-  //     Alert.alert('Invalid Move', 'You cannot send this priority level yet.');
-  //     setCardSent(true);
-  //     return;
-  //   }
-
-  //   const updates: Record<string, any> = {};
-
-  //   const remainingHand = handCards.filter(
-  //     c => c.id !== newPrev.id && !toCollect.some(tc => tc.id === c.id),
-  //   );
-
-  //   const didPlayerWin = remainingHand.length === 0;
-
-  //   if (didPlayerWin) {
-  //     updates.status = 'ended';
-  //     updates.result = {
-  //       winners: player,
-  //       reason: 'empty-hand',
-  //       endedAt: Date.now(),
-  //     };
-
-  //     updates.activePlayer = null;
-  //   }
-
-  //   if (room.PreviousCard) {
-  //     updates[`abandonedCards/${room.PreviousCard.id}`] = {
-  //       ...room.PreviousCard,
-  //       state: 'collected',
-  //       owner: 'unset',
-  //       indexInHand: null,
-  //     };
-  //   }
-
-  //   updates[`players/${player}/handCards/${newPrev.id}`] = null;
-
-  //   toCollect.forEach(c => {
-  //     updates[`players/${player}/handCards/${c.id}`] = null;
-  //     updates[`abandonedCards/${c.id}`] = {
-  //       ...handMap[c.id],
-  //       state: 'collected',
-  //       owner: 'unset',
-  //       indexInHand: null,
-  //     };
-  //   });
-
-  //   updates.PreviousCard = {
-  //     ...newPrev,
-  //     state: 'prevcard',
-  //     owner: 'unset',
-  //     indexInHand: null,
-  //   };
-
-  //   if (!didPlayerWin) {
-  //     const players = Object.keys(room.players).sort(
-  //       (a, b) => Number(a.slice(1)) - Number(b.slice(1)),
-  //     );
-  //     updates.activePlayer =
-  //       players[(players.indexOf(player) + 1) % players.length];
-
-  //     updates.turnNumber = currentTurn + 1;
-  //   }
-
-  //   remainingHand
-  //     .sort((a, b) => (a.indexInHand ?? 0) - (b.indexInHand ?? 0))
-  //     .forEach((c, i) => {
-  //       updates[`players/${player}/handCards/${c.id}/indexInHand`] = i;
-  //     });
-
-  //   if (lock && currentTurn + 1 > lock.untilTurn) {
-  //     updates[`turnLocks/${player}`] = null;
-  //   }
-
-  //   await update(ref(db, `room/${roomId}`), updates);
-  // };
 
   const getWinner = (clickedPlayer: playerId): playerId | undefined => {
     if (!room) return;
@@ -806,7 +547,6 @@ export default function Playground() {
     const minScore = Math.min(...scores.map(s => s.score));
     const lowest = scores.filter(s => s.score === minScore);
 
-    // Tie breaker: clicked player loses
     if (lowest.length > 1) {
       const winner = lowest.find(s => s.playerId !== clickedPlayer);
       return winner?.playerId;
@@ -904,6 +644,11 @@ export default function Playground() {
     });
   }, [logicalCards, revealAllCards, myPlayerId]);
 
+    useEffect(() => {
+    console.log('revealAllCards : >>>>>>> ', revealAllCards);
+  }, [revealAllCards]);
+
+
   useEffect(() => {
     if (!room || !user?.uid) return;
 
@@ -990,35 +735,104 @@ export default function Playground() {
     });
   }, [logicalCards, width, height, playersCount]);
 
-  // const canDrawFromDeck = async () => {
-  //   // Pull values from REFS, not state
-  //   const currentRoom = await getRoomSnap(roomId);
-  //   setroom(currentRoom);
-  //   const currentMeId = user.uid;
+    useEffect(() => {
+    if (!roomId) return;
 
-  //   if (!currentRoom?.activePlayer) {
-  //     console.log('currentRoom is missing data', {
-  //       active: currentRoom?.activePlayer,
-  //       me: currentMeId,
-  //     });
-  //     return false;
-  //   }
+    console.log('i am listening');
 
-  //   const currentMe = Object.entries(currentRoom.players).find(
-  //     ([_, player]) => player.userId === currentMeId,
-  //   )?.[0] as playerId | null;
+    const roomRef = ref(db, `room/${roomId}`);
 
-  //   if (!currentMe) {
-  //     console.log('current me is not present');
-  //     return false;
-  //   }
+    const unsubscribe = onValue(roomRef, snapshot => {
+      const roomData = snapshot.val();
 
-  //   // Use trim and lowerCase to prevent "p1" vs "p1 " mismatches
-  //   const active = currentRoom.activePlayer.toString().trim().toLowerCase();
-  //   const me = currentMe.toString().trim().toLowerCase();
+      if (roomData) {
+        const playerCount = roomData.players
+          ? Object.keys(roomData.players).length
+          : 0;
 
-  //   return active === me;
-  // };
+        if (
+          roomData.status === 'playing' &&
+          roomData.hostUid === user?.uid &&
+          !roomData.players.p1.handcards &&
+          !hasDealtRef.current &&
+          playerCount === roomData.playerCount
+        ) {
+          setPlayersCount(roomData.playerCount);
+          console.log('Host initiating deal...');
+          setdeckFlattened(true);
+          hasDealtRef.current = false;
+
+          prevStateRef.current = {};
+          prevIndexRef.current = {};
+          setJoinRoomModal(false);
+          setCreateRoomModal(false);
+          dealCardsHostOnly(roomId, roomData, roomRef);
+        }
+
+        if (roomData?.players?.p1?.handCards && roomData?.deck) {
+          setGameStarted(prev => (!prev ? true : prev));
+        }
+
+        setGameRoomData(roomData);
+        setroom(roomData);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [roomId, user]);
+
+    useEffect(() => {
+    if (!roomId) return;
+
+    console.log('i am listening');
+
+    const roomRef = ref(db, `room/${roomId}`);
+
+    const unsubscribe = onValue(roomRef, snapshot => {
+      const roomData = snapshot.val();
+
+      if (roomData) {
+        const playerCount = roomData.players
+          ? Object.keys(roomData.players).length
+          : 0;
+
+        if (
+          roomData.status === 'playing' &&
+          roomData.hostUid === user?.uid &&
+          !roomData.players.p1.handcards &&
+          !hasDealtRef.current &&
+          playerCount === roomData.playerCount
+        ) {
+          setPlayersCount(roomData.playerCount);
+          console.log('Host initiating deal...');
+          setdeckFlattened(true);
+          hasDealtRef.current = false;
+
+          prevStateRef.current = {};
+          prevIndexRef.current = {};
+          setJoinRoomModal(false);
+          setCreateRoomModal(false);
+          dealCardsHostOnly(roomId, roomData, roomRef);
+        }
+
+        if (roomData?.players?.p1?.handCards && roomData?.deck) {
+          setGameStarted(prev => (!prev ? true : prev));
+        }
+
+        setGameRoomData(roomData);
+        setroom(roomData);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [roomId, user]);
+
+  const joinedPlayers = useMemo(() => {
+  return room?.players ? Object.keys(room.players).length : 0;
+}, [room?.players]);
+
+const totalPlayers = room?.playerCount ?? playersCount;
+
 
   const getLogicalCard = (id: number) => logicalCards.find(c => c.id === id);
 
@@ -1029,6 +843,8 @@ export default function Playground() {
       if (gameEnded && room?.status === 'ended') {
         setGameStarted(false);
         setRevealAllCards(false);
+            navigation.navigate('Home');
+
       }
       if (room?.status === 'ended') return;
 
@@ -1123,8 +939,6 @@ export default function Playground() {
     });
   };
 
-  // kjoijoij
-
   async function createRoomFunction(roomId: number, totalPlayers: number) {
     setPlayersCount(totalPlayers);
     setRoomId(roomId);
@@ -1133,7 +947,6 @@ export default function Playground() {
       if (created) {
         setCreateRoomModal(false);
         joinRoomFunction(roomId);
-        // Alert.alert('Sucess', 'Created Room sucessfully');
       }
     }
   }
@@ -1145,7 +958,6 @@ export default function Playground() {
       if (result.gameStart) {
         setJoinRoomModal(false);
         setPlayersCount(result.playerCount);
-        // Alert.alert('Sucess', 'Joined Room sucessfully');
       }
     }
   }
@@ -1168,12 +980,9 @@ export default function Playground() {
     playersOpenedCards.value = 0;
     await set(ref(db, `room/${roomId}`), null);
     setGameStarted(false);
+    navigation.navigate('Home');
   }
 
-
-  useEffect(() => {
-    console.log('revealAllCards : >>>>>>> ', revealAllCards);
-  }, [revealAllCards]);
 
   async function handleResult() {
     setShowModal(false);
@@ -1192,53 +1001,7 @@ export default function Playground() {
     playersOpenedCards.value = 0;
   }
 
-  useEffect(() => {
-    if (!roomId) return;
 
-    const roomRef = ref(db, `room/${roomId}`);
-
-    const unsubscribe = onValue(roomRef, snapshot => {
-      const roomData = snapshot.val();
-
-      if (roomData) {
-        // setPlayersCount(roomData.playersCount);
-        const playerCount = roomData.players
-          ? Object.keys(roomData.players).length
-          : 0;
-
-        if (
-          roomData.status === 'playing' &&
-          roomData.hostUid === user?.uid &&
-          !roomData.players.p1.handcards &&
-          !hasDealtRef.current &&
-          playerCount === roomData.playerCount
-        ) {
-          setPlayersCount(roomData.playerCount);
-          console.log('Host initiating deal...');
-          setdeckFlattened(true);
-          hasDealtRef.current = false;
-
-          prevStateRef.current = {};
-          prevIndexRef.current = {};
-          setJoinRoomModal(false);
-          setCreateRoomModal(false);
-          dealCardsHostOnly(roomId, roomData, roomRef);
-        }
-
-        if (roomData?.players?.p1?.handCards && roomData?.deck) {
-          setGameStarted(prev => (!prev ? true : prev));
-        }
-
-        setGameRoomData(roomData);
-        setroom(roomData);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [roomId, user]);
-
-
-  let countIndex = 0;
   return (
     <View style={{ width: width, height: height, backgroundColor: '#1e1e1e' }}>
       {/* --- MODALS --- */}
@@ -1290,68 +1053,18 @@ export default function Playground() {
           button2="New Game"
         />
       )}
-      {CreateRoomModal && (
-        <CreateGameRoomModal
-          visible={CreateRoomModal}
-          player={winningPlayer}
-          onClose={() => setCreateRoomModal(false)}
-          onProceed={(roomId, totalPlayers) =>
-            createRoomFunction(roomId, totalPlayers)
-          }
-          heading={'Create Room'}
-          button1="Cancel"
-          button2="Create"
-        />
-      )}
-      {JoinRoomModal && (
-        <JoinGameRoomModal
-          visible={JoinRoomModal}
-          player={winningPlayer}
-          onClose={() => setJoinRoomModal(false)}
-          onProceed={roomId => joinRoomFunction(roomId)}
-          heading={'Join Room'}
-          button1="Cancel"
-          button2="Join"
-        />
-      )}
-      {WaitingRoomModal && (
+      
+      
+      ￼{/* --- LOBBY VIEW --- */}
+      {!gameStarted ? (
         <WaitingModal
           visible={WaitingRoomModal}
           onClose={handleCancel}
           heading={'Join Room'}
           button1="Cancel"
-          button2="Join"
+          playerCount={totalPlayers}
+          joinedPlayers={joinedPlayers}
         />
-      )}
-      ￼{/* --- LOBBY VIEW --- */}
-      {!gameStarted ? (
-        <View
-          style={{
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            borderColor: '#22c55e',
-            borderWidth: 2,
-          }}
-        >
-          <View style={{ gap: 10 }}>
-            <GameButton
-              title="Join Room"
-              onPress={async () => {
-                console.log(JoinRoomModal);
-                setJoinRoomModal(true);
-              }}
-            />
-
-            <GameButton
-              title="Create Room"
-              onPress={() => {
-                console.log(CreateRoomModal);
-                setCreateRoomModal(true);
-              }}
-            />
-          </View>
-        </View>
       ) : (
         /* --- GAME BOARD VIEW --- */
         <GestureHandlerRootView
@@ -1399,28 +1112,25 @@ export default function Playground() {
               {/* 3. User Avatars Layer */}
               <Group>
                 {room &&
-                  userPositions.map((p, i) => {
-                    // Determine the player key (e.g., "p1", "p2")
-                    const playerKey = `p${i + 1}`;
-                    const playerName = room.players?.[playerKey]?.userName;
+                  Object.entries(room.players).map(([pid, player]) => {
+                    const pos = getVisualPosition(pid);
 
                     return (
-                      <Group key={i}>
+                      <Group key={pid}>
                         {userImage && (
                           <Image
                             image={userImage}
-                            x={p.x}
-                            y={p.y}
+                            x={pos.x}
+                            y={pos.y}
                             width={userSize}
                             height={userSize}
                           />
                         )}
                         {defaultFont && (
                           <Text
-                            // Corrected: Uses i + 1 to match "p1", "p2", etc.
-                            text={playerName || 'Joining...'}
-                            x={p.x}
-                            y={p.y - 5}
+                            text={player.userName || 'Player'}
+                            x={pos.x}
+                            y={pos.y - 5}
                             font={defaultFont}
                             color="white"
                           />

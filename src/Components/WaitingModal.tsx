@@ -13,7 +13,9 @@ type WaitingModalProps = {
   onClose: () => void;
   heading: string;
   button1: string; // e.g., "Leave"
-  button2: string; // e.g., "Start Now"
+  joinedPlayers:number;
+  playerCount:number;
+
 };
 
 export default function WaitingModal({
@@ -21,7 +23,8 @@ export default function WaitingModal({
   onClose,
   heading,
   button1,
-  button2,
+  joinedPlayers,
+  playerCount,
 }: WaitingModalProps) {
   // Assuming roomId logic might be expanded later, keeping as is.
   const [roomId, setRoomId] = useState(0);
@@ -45,6 +48,9 @@ export default function WaitingModal({
           <Text style={styles.subtext}>
             We are looking for opponents...{'\n'}
             Kindly wait for other players to join.
+          </Text>
+          <Text style={styles.subtext}>
+            Players Joined  : {joinedPlayers}/{playerCount}
           </Text>
 
           {/* Divider Line (Optional) */}
