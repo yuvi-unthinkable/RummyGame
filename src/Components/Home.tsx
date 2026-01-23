@@ -43,20 +43,10 @@ export default function Home() {
         setPlayersCount(result.playerCount);
         navigation.navigate('Playground',{roomid:roomId, playerCount:playersCount});
       }
-    //   else{
-    //     setWaitingRoomModal(true)
-    //   }
     }
   }
 
-  //   async function handleCancel() {
-  //     setWaitingRoomModal(false);
-  //     if (!room?.players) return;
 
-  //     await set(ref(db, `room/${roomId}/players/${myId}`), null);
-
-  //     playersOpenedCards.value = 0;
-  //   }
 
   return (
     <>
@@ -76,7 +66,7 @@ export default function Home() {
         <JoinGameRoomModal
           visible={JoinRoomModal}
           onClose={() => setJoinRoomModal(false)}
-          onProceed={roomId => joinRoomFunction(roomId)}
+        onProceed={roomId => joinRoomFunction(roomId)}
           heading={'Join Room'}
           button1="Cancel"
           button2="Join"

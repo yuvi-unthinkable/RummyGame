@@ -781,52 +781,6 @@ export default function Playground() {
     return () => unsubscribe();
   }, [roomId, user]);
 
-    useEffect(() => {
-    if (!roomId) return;
-
-    console.log('i am listening');
-
-    const roomRef = ref(db, `room/${roomId}`);
-
-    const unsubscribe = onValue(roomRef, snapshot => {
-      const roomData = snapshot.val();
-
-      if (roomData) {
-        const playerCount = roomData.players
-          ? Object.keys(roomData.players).length
-          : 0;
-
-        if (
-          roomData.status === 'playing' &&
-          roomData.hostUid === user?.uid &&
-          !roomData.players.p1.handcards &&
-          !hasDealtRef.current &&
-          playerCount === roomData.playerCount
-        ) {
-          setPlayersCount(roomData.playerCount);
-          console.log('Host initiating deal...');
-          setdeckFlattened(true);
-          hasDealtRef.current = false;
-
-          prevStateRef.current = {};
-          prevIndexRef.current = {};
-          setJoinRoomModal(false);
-          setCreateRoomModal(false);
-          dealCardsHostOnly(roomId, roomData, roomRef);
-        }
-
-        if (roomData?.players?.p1?.handCards && roomData?.deck) {
-          setGameStarted(prev => (!prev ? true : prev));
-        }
-
-        setGameRoomData(roomData);
-        setroom(roomData);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [roomId, user]);
-
   const joinedPlayers = useMemo(() => {
   return room?.players ? Object.keys(room.players).length : 0;
 }, [room?.players]);
@@ -939,28 +893,28 @@ const totalPlayers = room?.playerCount ?? playersCount;
     });
   };
 
-  async function createRoomFunction(roomId: number, totalPlayers: number) {
-    setPlayersCount(totalPlayers);
-    setRoomId(roomId);
-    if (user?.uid) {
-      const created = await createRoom(user.uid, roomId, totalPlayers);
-      if (created) {
-        setCreateRoomModal(false);
-        joinRoomFunction(roomId);
-      }
-    }
-  }
-  async function joinRoomFunction(roomId: number) {
-    setRoomId(roomId);
-    if (user?.uid) {
-      const result = await JoinRoom(roomId, user.uid, user.username);
+  // async function createRoomFunction(roomId: number, totalPlayers: number) {
+  //   setPlayersCount(totalPlayers);
+  //   setRoomId(roomId);
+  //   if (user?.uid) {
+  //     const created = await createRoom(user.uid, roomId, totalPlayers);
+  //     if (created) {
+  //       setCreateRoomModal(false);
+  //       joinRoomFunction(roomId);
+  //     }
+  //   }
+  // }
+  // async function joinRoomFunction(roomId: number) {
+  //   setRoomId(roomId);
+  //   if (user?.uid) {
+  //     const result = await JoinRoom(roomId, user.uid, user.username);
 
-      if (result.gameStart) {
-        setJoinRoomModal(false);
-        setPlayersCount(result.playerCount);
-      }
-    }
-  }
+  //     if (result.gameStart) {
+  //       setJoinRoomModal(false);
+  //       setPlayersCount(result.playerCount);
+  //     }
+  //   }
+  // }
 
   async function newGame() {
     hasDealtRef.current = false;
@@ -996,9 +950,11 @@ const totalPlayers = room?.playerCount ?? playersCount;
     setWaitingRoomModal(false);
     if (!room?.players) return;
 
-    await set(ref(db, `room/${roomId}/players/${myId}`), null);
-
     playersOpenedCards.value = 0;
+    await set(ref(db, `room/${roomId}/players/${myId}`), null);
+        navigation.navigate('Home');
+
+
   }
 
 
