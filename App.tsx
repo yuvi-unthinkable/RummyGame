@@ -19,8 +19,6 @@ const Stack = createNativeStackNavigator();
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'App'>;
 
-
-// 1. Define the Auth Stack (Logged Out)
 const AuthStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: true }}>
     <Stack.Screen name="Login" component={Login} />
@@ -28,7 +26,6 @@ const AuthStack = () => (
   </Stack.Navigator>
 );
 
-// 2. Define the Game Stack (Logged In)
 const GameStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Home" component={Home} />
@@ -36,12 +33,9 @@ const GameStack = () => (
   </Stack.Navigator>
 );
 
-// 3. The Logic Controller
 const RootNavigator = () => {
   const { user, loading } = useUser();
-  // console.log("🚀 ~ RootNavigator ~ user:", user)
 
-  // IMPORTANT: This prevents the 'null' flash while Firebase is waking up
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -57,7 +51,6 @@ const RootNavigator = () => {
   );
 };
 
-// 4. The Main App Entry Point
 function App() {
   return (
      <GestureHandlerRootView style={{ flex: 1 }}>

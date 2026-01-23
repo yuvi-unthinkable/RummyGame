@@ -45,7 +45,6 @@ export default function JoinGameRoomModal({
   useEffect(() => {
     const loadRooms = async () => {
       const rooms: Record<string, RoomData> = await getAvailableRooms();
-      // console.log('🚀 ~ JoinGameRoomModal ~ rooms:', rooms);
       const availableRooms = Object.entries(rooms)
         .filter(([_, roomData]) => roomData.status === 'waiting')
         .map(([roomId, roomData]) => ({
@@ -56,15 +55,12 @@ export default function JoinGameRoomModal({
       if (availableRooms) {
         setAvailableRooms(availableRooms);
       }
-      // console.log('🚀 ~ loadRooms ~ availableRooms:', availableRooms);
     };
 
     loadRooms();
   }, []);
 
-  useEffect(() => {
-    console.log('availableRooms >>>', availableRooms);
-  }, [availableRooms]);
+  useEffect(() => {}, [availableRooms]);
 
   const data = availableRooms.map(room => ({
     label: `Room ${room.roomId} (${room.playersJoined}/${room.totalPlayers})`,

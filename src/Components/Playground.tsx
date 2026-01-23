@@ -937,7 +937,6 @@ const totalPlayers = room?.playerCount ?? playersCount;
     navigation.navigate('Home');
   }
 
-
   async function handleResult() {
     setShowModal(false);
     playersOpenedCards.value = 0;
@@ -956,11 +955,8 @@ const totalPlayers = room?.playerCount ?? playersCount;
 
 
   }
-
-
   return (
     <View style={{ width: width, height: height, backgroundColor: '#1e1e1e' }}>
-      {/* --- MODALS --- */}
       {showQuitModal && (
         <EndModal
           visible={showQuitModal}
@@ -1010,8 +1006,6 @@ const totalPlayers = room?.playerCount ?? playersCount;
         />
       )}
       
-      
-      ￼{/* --- LOBBY VIEW --- */}
       {!gameStarted ? (
         <WaitingModal
           visible={WaitingRoomModal}
@@ -1022,13 +1016,11 @@ const totalPlayers = room?.playerCount ?? playersCount;
           joinedPlayers={joinedPlayers}
         />
       ) : (
-        /* --- GAME BOARD VIEW --- */
         <GestureHandlerRootView
           style={{ flex: 1, borderWidth: 2, borderColor: '#006effff' }}
         >
           <GestureDetector gesture={tapGesture}>
             <Canvas style={{ flex: 1 }}>
-              {/* 1. Background Layer */}
               <Group>
                 <Rect x={0} y={0} width={width} height={height} color="#000" />
                 {bg && (
@@ -1043,7 +1035,6 @@ const totalPlayers = room?.playerCount ?? playersCount;
                 )}
               </Group>
 
-              {/* 2. Table Layer */}
               <Group>
                 {table ? (
                   <Image
@@ -1064,8 +1055,7 @@ const totalPlayers = room?.playerCount ?? playersCount;
                   />
                 )}
               </Group>
-
-              {/* 3. User Avatars Layer */}
+              
               <Group>
                 {room &&
                   Object.entries(room.players).map(([pid, player]) => {
