@@ -38,6 +38,7 @@ import {
   update,
   onValue,
   set,
+  onDisconnect,
 } from '@react-native-firebase/database';
 import { getApp } from '@react-native-firebase/app';
 // import CreateGameModal from './CreateGameRoomModal';
@@ -52,6 +53,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../navigators/types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import RulesModal from './RulesModal';
+import Bot from './Bot';
 
 export type CardData = {
   meta: CardMeta;
@@ -172,6 +174,8 @@ export default function Playground() {
     const winners = room.result?.winners;
     if (!winners?.length) return;
 
+    // const name = room.players[winners]?.userName;
+
     setWinningPlayer(winners);
     setShowModal(true);
   }, [room?.status]);
@@ -253,9 +257,9 @@ export default function Playground() {
     }
 
     const myIndex = parseInt(myPlayerId.replace('p', ''), 10) - 1;
-    console.log('🚀 ~ getVisualPosition ~ myIndex:', myIndex);
+    // console.log('🚀 ~ getVisualPosition ~ myIndex:', myIndex);
     const targetIndex = parseInt(targetPlayerId.replace('p', ''), 10) - 1;
-    console.log('🚀 ~ getVisualPosition ~ targetIndex:', targetIndex);
+    // console.log('🚀 ~ getVisualPosition ~ targetIndex:', targetIndex);
 
     const visualIndex = (targetIndex - myIndex + playersCount) % playersCount;
 
@@ -271,9 +275,9 @@ export default function Playground() {
     const indexInHand = parseInt(owner[1]);
 
     const myIndex = parseInt(myPlayerId.replace('p', ''), 10) - 1;
-    console.log('🚀 ~ getVisualPosition ~ myIndex:', myIndex);
+    // console.log('🚀 ~ getVisualPosition ~ myIndex:', myIndex);
     const targetIndex = parseInt(owner.replace('p', ''), 10) - 1;
-    console.log('🚀 ~ getVisualPosition ~ targetIndex:', targetIndex);
+    // console.log('🚀 ~ getVisualPosition ~ targetIndex:', targetIndex);
 
     const visualIndex = (targetIndex - myIndex + playersCount) % playersCount;
 
@@ -307,7 +311,7 @@ export default function Playground() {
           };
         } else {
           return {
-            x: target.x,
+            x: visualIndex === 1 ? target.x - 7 : target.x + 10,
             y: initialY + verticalSpreadGap * index,
           };
         }
@@ -555,7 +559,9 @@ export default function Playground() {
       return winner?.playerId;
     }
 
-    return lowest[0].playerId;
+    const pId = lowest[0].playerId;
+    const winnerName = room.players[pId]?.userName;
+    return winnerName;
   };
 
   const cardHitTest = (x: number, y: number, card: CardData) => {
@@ -783,6 +789,48 @@ export default function Playground() {
     return () => unsubscribe();
   }, [roomId, user]);
 
+  // useEffect(() => {
+  //   if (!room || !room.activePlayer || !room.players || !myPlayerId) return;
+
+  //   console.log('🚀 ~ Playground ~ myPlayerId:', myPlayerId);
+  //   const disconnectedRef = ref(db, `room/${roomId}/players/${myPlayerId}/dropped`);
+
+  //   onDisconnect(disconnectedRef).set(true);
+
+  //   if (room.players[myPlayerId].dropped) {
+  //     const release = async () =>
+  //       ReleaseOneMoreCard(room, roomId, setCardSent, myPlayerId, cardDeck);
+
+  //     Bot(room, roomId, setCardSent, logicalCards, myPlayerId, cards);
+  //   }
+  // }, [room?.activePlayer]);
+
+  useEffect(() => {
+    if (
+      !room ||
+      !room.activePlayer ||
+      !myPlayerId ||
+      !room.players?.[myPlayerId]
+    ) {
+      return;
+    }
+
+    const me = room.players[myPlayerId];
+
+    if (me.dropped) return;
+
+    if (room.activePlayer !== myPlayerId) return;
+
+    release();
+
+    Bot(room, roomId, setCardSent, logicalCards, myPlayerId, cards);
+  }, [room?.activePlayer]);
+
+  const release = async () => {
+    if (!room || !myPlayerId) return;
+    await ReleaseOneMoreCard(room, roomId, setCardSent, myPlayerId, cardDeck);
+  };
+
   const joinedPlayers = useMemo(() => {
     return room?.players ? Object.keys(room.players).length : 0;
   }, [room?.players]);
@@ -972,6 +1020,8 @@ export default function Playground() {
             const winner = getWinner(myPlayerId);
             if (!winner) return;
 
+            const endedByName = room.players[myPlayerId]?.userName;
+
             await update(ref(db, `room/${roomId}`), {
               status: 'ended',
               activePlayer: null,
@@ -979,7 +1029,7 @@ export default function Playground() {
                 winners: winner,
                 reason: 'manual-end',
                 endedAt: Date.now(),
-                endedBy: myPlayerId,
+                endedBy: endedByName,
               },
             });
 
@@ -996,7 +1046,7 @@ export default function Playground() {
           heading={'Game Ended'}
           message={
             room?.result?.reason === 'manual-end'
-              ? `Game ended by ${room?.result?.endedBy}  and ${room?.result?.winners} has won the game`
+              ? `Game ended by ${room?.result?.endedBy}  and ${winningPlayer} has won the game`
               : `${winningPlayer} has won the game`
           }
           button1="Show"
@@ -1005,10 +1055,7 @@ export default function Playground() {
       )}
 
       {rulesModal && (
-        <RulesModal
-          visible={rulesModal}
-          onClose={()=>setRulesModal(false)}
-        />
+        <RulesModal visible={rulesModal} onClose={() => setRulesModal(false)} />
       )}
 
       {!gameStarted ? (
@@ -1145,7 +1192,7 @@ export default function Playground() {
                   if (!myPlayerId) return;
                   setShowQuitModal(true);
                 }}
-                disabled = {room?.activePlayer!== myId}
+                disabled={room?.activePlayer !== myId}
               />
             </View>
           )}
