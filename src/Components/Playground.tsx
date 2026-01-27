@@ -51,6 +51,7 @@ import { getHandForPlayer } from '../Utility/getPlayerHands';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../navigators/types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import RulesModal from './RulesModal';
 
 export type CardData = {
   meta: CardMeta;
@@ -96,6 +97,7 @@ export default function Playground() {
   const [CreateRoomModal, setCreateRoomModal] = useState(false);
   const [JoinRoomModal, setJoinRoomModal] = useState(false);
   const [WaitingRoomModal, setWaitingRoomModal] = useState(false);
+  const [rulesModal, setRulesModal] = useState(false);
   const [playersCount, setPlayersCount] = useState(2);
   const [roomId, setRoomId] = useState(0);
   const [gameEnded, setGameEnded] = useState(false);
@@ -163,6 +165,7 @@ export default function Playground() {
     }
     if (room?.status === 'playing') {
       setGameStarted(true);
+      setRulesModal(true);
       setWaitingRoomModal(false);
     } else if (room?.status !== 'ended') return;
 
@@ -644,10 +647,9 @@ export default function Playground() {
     });
   }, [logicalCards, revealAllCards, myPlayerId]);
 
-    useEffect(() => {
+  useEffect(() => {
     console.log('revealAllCards : >>>>>>> ', revealAllCards);
   }, [revealAllCards]);
-
 
   useEffect(() => {
     if (!room || !user?.uid) return;
@@ -735,7 +737,7 @@ export default function Playground() {
     });
   }, [logicalCards, width, height, playersCount]);
 
-    useEffect(() => {
+  useEffect(() => {
     if (!roomId) return;
 
     console.log('i am listening');
@@ -782,11 +784,10 @@ export default function Playground() {
   }, [roomId, user]);
 
   const joinedPlayers = useMemo(() => {
-  return room?.players ? Object.keys(room.players).length : 0;
-}, [room?.players]);
+    return room?.players ? Object.keys(room.players).length : 0;
+  }, [room?.players]);
 
-const totalPlayers = room?.playerCount ?? playersCount;
-
+  const totalPlayers = room?.playerCount ?? playersCount;
 
   const getLogicalCard = (id: number) => logicalCards.find(c => c.id === id);
 
@@ -797,8 +798,7 @@ const totalPlayers = room?.playerCount ?? playersCount;
       if (gameEnded && room?.status === 'ended') {
         setGameStarted(false);
         setRevealAllCards(false);
-            navigation.navigate('Home');
-
+        navigation.navigate('Home');
       }
       if (room?.status === 'ended') return;
 
@@ -951,9 +951,7 @@ const totalPlayers = room?.playerCount ?? playersCount;
 
     playersOpenedCards.value = 0;
     await set(ref(db, `room/${roomId}/players/${myId}`), null);
-        navigation.navigate('Home');
-
-
+    navigation.navigate('Home');
   }
   return (
     <View style={{ width: width, height: height, backgroundColor: '#1e1e1e' }}>
@@ -1005,7 +1003,14 @@ const totalPlayers = room?.playerCount ?? playersCount;
           button2="New Game"
         />
       )}
-      
+
+      {rulesModal && (
+        <RulesModal
+          visible={rulesModal}
+          onClose={()=>setRulesModal(false)}
+        />
+      )}
+
       {!gameStarted ? (
         <WaitingModal
           visible={WaitingRoomModal}
@@ -1055,7 +1060,7 @@ const totalPlayers = room?.playerCount ?? playersCount;
                   />
                 )}
               </Group>
-              
+
               <Group>
                 {room &&
                   Object.entries(room.players).map(([pid, player]) => {
@@ -1140,6 +1145,7 @@ const totalPlayers = room?.playerCount ?? playersCount;
                   if (!myPlayerId) return;
                   setShowQuitModal(true);
                 }}
+                disabled = {room?.activePlayer!== myId}
               />
             </View>
           )}
