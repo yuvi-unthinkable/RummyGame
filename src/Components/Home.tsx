@@ -15,7 +15,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 export default function Home() {
   const [CreateRoomModal, setCreateRoomModal] = useState(false);
   const [JoinRoomModal, setJoinRoomModal] = useState(false);
-  const [playersCount, setPlayersCount] = useState(2);
+  const [playersCount, setPlayersCount] = useState(0);
   const [roomId, setRoomId] = useState(0);
 
   const navigation = useNavigation<NavigationProp>();
@@ -41,7 +41,7 @@ export default function Home() {
       if (result.gameStart) {
         setJoinRoomModal(false);
         setPlayersCount(result.playerCount);
-        navigation.navigate('Playground',{roomid:roomId, playerCount:playersCount});
+        navigation.navigate('Playground',{roomid:roomId, playerCount:result.playerCount});
       }
     }
   }
