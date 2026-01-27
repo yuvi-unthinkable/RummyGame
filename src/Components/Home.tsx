@@ -39,8 +39,8 @@ export default function Home() {
       const result = await JoinRoom(roomId, user.uid, user.username);
 
       if (result.gameStart) {
-        setJoinRoomModal(false);
-        setPlayersCount(result.playerCount);
+        setJoinRoomModal(()=> false);
+        setPlayersCount(()=> result.playerCount);
         navigation.navigate('Playground',{roomid:roomId, playerCount:result.playerCount});
       }
     }
