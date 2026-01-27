@@ -8,24 +8,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
-type WaitingModalProps = {
+type RulesModalProps = {
   visible: boolean;
   onClose: () => void;
-  heading: string;
-  button1: string; // e.g., "Leave"
-  joinedPlayers:number;
-  playerCount:number;
-
 };
 
-export default function WaitingModal({
-  visible,
-  onClose,
-  heading,
-  button1,
-  joinedPlayers,
-  playerCount,
-}: WaitingModalProps) {
+export default function RulesModal({ visible, onClose }: RulesModalProps) {
   // Assuming roomId logic might be expanded later, keeping as is.
   const [roomId, setRoomId] = useState(0);
 
@@ -38,19 +26,22 @@ export default function WaitingModal({
     >
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          {/* Visual Anchor: The Spinner */}
-          <View style={styles.indicatorContainer}>
-            <ActivityIndicator size="large" color="#22c55e" />
-          </View>
 
-          {/* Text Content */}
-          <Text style={styles.title}>{heading}</Text>
+
+          <Text style={styles.title}>Rules</Text>
           <Text style={styles.subtext}>
-            We are looking for opponents...{'\n'}
-            Kindly wait for other players to join.
-          </Text>
-          <Text style={styles.subtext}>
-            Players Joined  : {joinedPlayers}/{playerCount}
+            1. You must take a card from the deck or from the previous cards
+            before sending a card.{'\n'}
+            2. You can pick or send only one card at a time.{'\n'}
+            3. If you pick a card from previous cards, you must wait until the
+            next turn to send that card or other cards of the same priority.
+            {'\n'}
+            4. A card picked from previous cards cannot be used as the last card
+            in the same turn.{'\n'}
+            5. All cards of the same priority can be sent at once.{'\n'}
+            6. Highlighted cards denotes turn.{'\n'}
+            7. The player who finishes their hand first or has the lowest total
+            priority sum when the game ends wins the game.
           </Text>
 
           {/* Divider Line (Optional) */}
@@ -63,7 +54,7 @@ export default function WaitingModal({
               onPress={onClose}
               android_ripple={{ color: '#3f3f46' }}
             >
-              <Text style={styles.cancelText}>{button1}</Text>
+              <Text style={styles.cancelText}>Close</Text>
             </Pressable>
           </View>
         </View>

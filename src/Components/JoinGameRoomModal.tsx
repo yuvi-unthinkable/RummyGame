@@ -7,17 +7,23 @@ import {
   View,
 } from 'react-native';
 import React, { useEffect, useState } from 'react';
+import { getAvailableRooms } from '../services/db.service';
+import { RoomData } from '../Backend/Room';
 import { Dropdown } from 'react-native-element-dropdown';
-// import { getAvailableRooms } from '../services/db.service';
 
 type JoinGameRoomModalProps = {
   visible: boolean;
-  player?: string;
   onClose: () => void;
   onProceed: (roomId: number) => void;
   heading: string;
   button1: string;
   button2: string;
+};
+
+type AvailableRoom = {
+  roomId: number;
+  playersJoined: number;
+  totalPlayers: number;
 };
 
 export default function JoinGameRoomModal({
@@ -29,14 +35,37 @@ export default function JoinGameRoomModal({
   button2,
 }: JoinGameRoomModalProps) {
   const [roomId, setRoomId] = useState(0);
-  const [playersCount, setPlayersCount] = useState(2);
+  const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
 
-  // useEffect(()=>{
-  //   const result = getAvailableRooms();
-  //   console.log("🚀 ~ JoinGameRoomModal ~ result:", result)
-  // },[])
+  // const [playersCount, setPlayersCount] = useState(2);
 
-  
+  let arr = [{}];
+
+  useEffect(() => {
+    const loadRooms = async () => {
+      const rooms: Record<string, RoomData> = await getAvailableRooms();
+      const availableRooms = Object.entries(rooms)
+        .filter(([_, roomData]) => roomData.status === 'waiting')
+        .map(([roomId, roomData]) => ({
+          roomId: Number(roomId),
+          playersJoined: Object.keys(roomData.players ?? {}).length,
+          totalPlayers: roomData.playerCount,
+        }));
+      if (availableRooms) {
+        setAvailableRooms(availableRooms);
+      }
+    };
+
+    loadRooms();
+  }, []);
+
+  useEffect(() => {}, [availableRooms]);
+
+  const data = availableRooms.map(room => ({
+    label: `Room ${room.roomId} (${room.playersJoined}/${room.totalPlayers})`,
+    value: room.roomId,
+  }));
 
   return (
     <Modal transparent visible={visible} animationType="fade">
@@ -56,19 +85,24 @@ export default function JoinGameRoomModal({
             style={styles.input}
           />
 
-          {/* <Dropdown
+          <Text style={styles.title}>OR</Text>
+
+          <Dropdown
             style={styles.dropdown}
             placeholderStyle={styles.placeholder}
             selectedTextStyle={styles.selectedText}
             iconStyle={styles.icon}
             data={data}
             maxHeight={250}
-            value={playersCount}
+            value={selectedRoomId}
             labelField="label"
             valueField="value"
-            placeholder="Select Players"
-            onChange={item => setPlayersCount(item.value)}
-          /> */}
+            placeholder="Select Room"
+            onChange={item => {
+              setSelectedRoomId(item.value);
+              setRoomId(item.value); // optional: keep TextInput in sync
+            }}
+          />
 
           <View style={styles.actions}>
             <Pressable style={styles.cancelBtn} onPress={onClose}>
@@ -77,7 +111,12 @@ export default function JoinGameRoomModal({
 
             <Pressable
               style={styles.primaryBtn}
-              onPress={() => onProceed(roomId)}
+              disabled={!selectedRoomId && !roomId}
+              onPress={() => {
+                // if (!selectedRoomId && !roomId) return;
+                if (selectedRoomId) onProceed(selectedRoomId);
+                else if (roomId) onProceed(roomId);
+              }}
             >
               <Text style={styles.primaryText}>{button2}</Text>
             </Pressable>

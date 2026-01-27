@@ -154,13 +154,14 @@ export async function UpdateRoomData(roomId: number, room: RoomData) {
   });
 }
 
-// export async function getAvailableRooms() {
-// const allRef = ref(db,`room`);
+export async function getAvailableRooms() {
+  const allRef = ref(db, 'room');
 
-// const available = get(allRef)
-// console.log("🚀 ~ getAvailableRooms ~ available:", available)
-// return true;
+  const snapshot = await get(allRef);
 
+  if (!snapshot.exists()) {
+    return [];
+  }
 
-  
-// }
+  return snapshot.val();
+}

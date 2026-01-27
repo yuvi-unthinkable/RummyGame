@@ -1,6 +1,7 @@
 export type RootStackParamList = {
-  App:undefined
+  App: undefined;
   Login: undefined;
   SignUp: undefined;
-  Playground: undefined;
+  Home: undefined;
+  Playground: { roomid: number; playerCount: number };
 };

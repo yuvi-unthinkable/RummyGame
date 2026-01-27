@@ -39,6 +39,7 @@ export default function Login() {
       return;
     }
     setUser(user)
+    navigation.navigate('Home')
   };
 
   return (
