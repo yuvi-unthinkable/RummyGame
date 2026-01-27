@@ -39,7 +39,7 @@ export default function RulesModal({ visible, onClose }: RulesModalProps) {
             4. A card picked from previous cards cannot be used as the last card
             in the same turn.{'\n'}
             5. All cards of the same priority can be sent at once.{'\n'}
-            6. Highlighted cards will forfeit your turn.{'\n'}
+            6. Highlighted cards denotes turn.{'\n'}
             7. The player who finishes their hand first or has the lowest total
             priority sum when the game ends wins the game.
           </Text>
