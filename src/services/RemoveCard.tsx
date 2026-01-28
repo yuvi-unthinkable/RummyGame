@@ -1,20 +1,21 @@
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert } from 'react-native';
 import React from 'react';
-import { CardData, LogicalCard, playerId } from '../Components/Playground';
+import {  playerId } from '../Components/Playground';
 import { RoomData } from '../Backend/Room';
 import { NetworkCard } from '../Backend/useGameStarted';
 import { getDatabase, ref, update } from '@react-native-firebase/database';
 import { getApp } from '@react-native-firebase/app';
+import { getRoomSnap } from './db.service';
 
 export async function removeHighestCards(
-  room: RoomData,
   roomId: number,
   setCardSent: React.Dispatch<React.SetStateAction<boolean>>,
-  logicalCards: LogicalCard[],
-  card: CardData,
+  cardId: number,
   player: playerId,
 ) {
+
   const db = getDatabase(getApp());
+  const room = await getRoomSnap(roomId);
   setCardSent(false);
 
   if (!room || !room.activePlayer) {
@@ -27,20 +28,15 @@ export async function removeHighestCards(
     return;
   }
 
-  const logical = logicalCards.find(c => c.id === card.meta.id);
-  if (!logical) {
-    setCardSent(true);
-    return;
-  }
+ const handMap = room.players[player]?.handCards;
+if (!handMap || !handMap[cardId]) {
+  Alert.alert('Invalid Move', 'This card does not belong to you');
+  setCardSent(true);
+  return;
+}
 
-  if (logical.owner !== player) {
-    Alert.alert('Invalid Move', 'This card does not belong to you');
-    setCardSent(true);
-    return;
-  }
 
-  const handMap = room.players[player]?.handCards;
-  if (!handMap) return;
+
 
   const handCards = Object.values(handMap).filter(Boolean);
 
@@ -49,7 +45,7 @@ export async function removeHighestCards(
   const isLocked = lock && currentTurn <= lock.untilTurn;
   const lockedId = isLocked ? lock.id : null;
 
-  const clickedPriority = handMap[logical.id]?.priority;
+  const clickedPriority = handMap[cardId]?.priority;
   if (clickedPriority == null) {
     setCardSent(true);
     return;
@@ -63,7 +59,7 @@ export async function removeHighestCards(
 
   const allSamePriority = samePriority.length === handCards.length;
 
-  if (!allSamePriority && lockedId === logical.id) {
+  if (!allSamePriority && lockedId === cardId) {
     Alert.alert(
       'Invalid Move',
       'You cannot send the card you just picked from previous.',
@@ -84,10 +80,10 @@ export async function removeHighestCards(
       return;
     }
 
-    const userClickedValid = availableToSend.some(c => c.id === logical.id);
+    const userClickedValid = availableToSend.some(c => c.id === cardId);
 
     if (userClickedValid) {
-      newPrev = handMap[logical.id];
+      newPrev = handMap[cardId];
     } else {
       newPrev = availableToSend[0];
     }
@@ -96,14 +92,14 @@ export async function removeHighestCards(
       c => c.id !== newPrev.id && c.id !== lockedId,
     );
   } else {
-    newPrev = handMap[logical.id];
-    toCollect = samePriority.filter(c => c.id !== logical.id);
+    newPrev = handMap[cardId];
+    toCollect = samePriority.filter(c => c.id !== cardId);
   }
 
   if (
     isLocked &&
     !allSamePriority &&
-    lock.blockedPriority === handMap[logical.id]?.priority
+    lock.blockedPriority === handMap[cardId]?.priority
   ) {
     Alert.alert('Invalid Move', 'You cannot send this priority level yet.');
     setCardSent(true);

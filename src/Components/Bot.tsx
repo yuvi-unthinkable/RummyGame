@@ -1,21 +1,27 @@
 import { StyleSheet, Text, View } from 'react-native';
 import React from 'react';
-import { CardData, LogicalCard, playerId } from './Playground';
-import { getHandForPlayer } from '../Utility/getPlayerHands';
+import { playerId } from './Playground';
 import { RoomData } from '../Backend/Room';
 import { NetworkCard } from '../Backend/useGameStarted';
 import { removeHighestCards } from '../services/RemoveCard';
+import { getRoomSnap } from '../services/db.service';
 
 export default async function Bot(
-  room: RoomData,
   roomId: number,
   setCardSent: React.Dispatch<React.SetStateAction<boolean>>,
-  logicalCards: LogicalCard[],
   playerId: playerId,
-  cards: CardData[],
 ) {
-  const hand = getHandForPlayer(room, playerId);
+  console.log('bot working for player >>>>>>>>> ', playerId);
+
+  const roomSnap = await getRoomSnap(roomId);
+  if (roomSnap === null) return;
+  const map = roomSnap.players[playerId]?.handCards;
+  const hand = map ? Object.values(map).filter(Boolean) : [];
+  // const hand = getHandForPlayer(room, playerId);
   if (hand.length === 0) return;
+
+  console.log('i want to print');
+  console.log('🚀 ~ Bot ~ hand:>>>>>>>>>>>>>>>>>>>>>>', hand);
 
   const highest = Math.max(...hand.map(c => c.priority));
 
@@ -47,22 +53,10 @@ export default async function Bot(
     removableCards = [...prevPair];
     remaining = hand.filter(c => c.priority !== prevPair[0].priority);
   }
-  console.log('🚀 ~ Bot ~ highest:', highest);
-  console.log('🚀 ~ Bot ~ prevSum:', prevSum);
-  console.log('🚀 ~ Bot ~ remaining:', remaining);
 
-const SendingCard = cards.find(
-  c => c.meta.id === removableCards[0].id
-);
-  if (SendingCard)
-    await removeHighestCards(
-      room,
-      roomId,
-      setCardSent,
-      logicalCards,
-      SendingCard,
-      playerId,
-    );
+  if (removableCards.length === 0) return;
+
+  await removeHighestCards(roomId, setCardSent, removableCards[0].id, playerId);
 }
 
 const styles = StyleSheet.create({});

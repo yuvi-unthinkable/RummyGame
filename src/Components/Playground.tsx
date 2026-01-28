@@ -174,9 +174,9 @@ export default function Playground() {
     const winners = room.result?.winners;
     if (!winners?.length) return;
 
-    // const name = room.players[winners]?.userName;
+    const name = room.players[winners]?.userName;
 
-    setWinningPlayer(winners);
+    setWinningPlayer(name);
     setShowModal(true);
   }, [room?.status]);
 
@@ -793,43 +793,107 @@ export default function Playground() {
   //   if (!room || !room.activePlayer || !room.players || !myPlayerId) return;
 
   //   console.log('🚀 ~ Playground ~ myPlayerId:', myPlayerId);
-  //   const disconnectedRef = ref(db, `room/${roomId}/players/${myPlayerId}/dropped`);
+  //   const disconnectedRef = ref(
+  //     db,
+  //     `room/${roomId}/players/${myPlayerId}/dropped`,
+  //   );
 
   //   onDisconnect(disconnectedRef).set(true);
 
-  //   if (room.players[myPlayerId].dropped) {
-  //     const release = async () =>
-  //       ReleaseOneMoreCard(room, roomId, setCardSent, myPlayerId, cardDeck);
+  //   const activePlayerId = room.activePlayer;
+  //   const activePlayer = room.players[activePlayerId];
 
-  //     Bot(room, roomId, setCardSent, logicalCards, myPlayerId, cards);
+  //   if (activePlayer?.dropped) {
+  //     if (user?.uid === room.hostUid) {
+  //       console.log(
+  //         `[Bot] Host taking over for dropped player: ${activePlayerId}`,
+  //       );
+  //       const release = async () => {
+  //         if (!room || !myPlayerId) return;
+  //         await ReleaseOneMoreCard(
+  //           room,
+  //           roomId,
+  //           setCardSent,
+  //           myPlayerId,
+  //           cardDeck,
+  //         );
+  //       };
+  //       release();
+
+  //       Bot(room, roomId, setCardSent, logicalCards, activePlayerId, cards);
+  //     }
   //   }
-  // }, [room?.activePlayer]);
+  // }, [room?.activePlayer, room?.players, myPlayerId, user?.uid]);
+
+  // const release = async () => {
+  //   if (!room || !myPlayerId) return;
+  //   await ReleaseOneMoreCard(room, roomId, setCardSent, myPlayerId, cardDeck);
+  // };
 
   useEffect(() => {
-    if (
-      !room ||
-      !room.activePlayer ||
-      !myPlayerId ||
-      !room.players?.[myPlayerId]
-    ) {
-      return;
+    if (!room || !room.activePlayer || !room.players || !myPlayerId) return;
+
+    const disconnectedRef = ref(
+      db,
+      `room/${roomId}/players/${myPlayerId}/dropped`,
+    );
+    onDisconnect(disconnectedRef).set(true);
+
+    const activePlayerId = room.activePlayer;
+    const activePlayer = room.players[activePlayerId];
+
+    if (activePlayer?.dropped) {
+      // console.log('🚀 ~ Playground ~ activePlayer:', activePlayer);
+
+      const onlinePlayers = Object.entries(room.players)
+        .filter(([_, p]) => !p.dropped)
+        .sort((a, b) => a[0].localeCompare(b[0]));
+
+      if (onlinePlayers.length === 0) return;
+
+      const actingHostId = onlinePlayers[0][0];
+      console.log('🚀 ~ Playground ~ actingHostId:', actingHostId);
+
+      console.log('🚀 ~ Playground ~ myPlayerId:', myPlayerId);
+      if (myPlayerId === actingHostId) {
+        const executeBotTurn = async () => {
+          console.log(`[Bot] Host executing turn for: ${activePlayerId}`);
+
+          try {
+            if (cardSent) {
+              console.log('🚀 ~ executeBotTurn ~ cardSent:', cardSent);
+              console.log('[Release] One card already sent');
+              return;
+            }
+
+            console.log('going to release from deck');
+            await ReleaseOneMoreCard(
+              room,
+              roomId,
+              setCardSent,
+              activePlayerId,
+              cardDeck,
+            );
+            setCardSent(true);
+
+            setTimeout(() => {
+              Bot(
+                roomId,
+                setCardSent,
+                activePlayerId,
+              );
+              // setCardSent(true);
+              console.log('going to remove one card');
+            }, 3000);
+          } catch (error) {
+            console.error('Bot turn failed', error);
+          }
+        };
+
+        executeBotTurn();
+      }
     }
-
-    const me = room.players[myPlayerId];
-
-    if (me.dropped) return;
-
-    if (room.activePlayer !== myPlayerId) return;
-
-    release();
-
-    Bot(room, roomId, setCardSent, logicalCards, myPlayerId, cards);
-  }, [room?.activePlayer]);
-
-  const release = async () => {
-    if (!room || !myPlayerId) return;
-    await ReleaseOneMoreCard(room, roomId, setCardSent, myPlayerId, cardDeck);
-  };
+  }, [room?.activePlayer, room?.players, myPlayerId, user?.uid]);
 
   const joinedPlayers = useMemo(() => {
     return room?.players ? Object.keys(room.players).length : 0;
@@ -916,11 +980,9 @@ export default function Playground() {
           }
 
           await removeHighestCards(
-            room,
             roomId,
             setCardSent,
-            logicalCards,
-            card,
+            card.meta.id,
             myPlayerId,
           );
           return;
